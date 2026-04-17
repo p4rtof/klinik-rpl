@@ -99,14 +99,14 @@ export function initData() {
   const today = new Date().toISOString().split("T")[0];
 
   const patients: Patient[] = [
-    { id: "1", name: "Fadhla Rahmawati", age: 20, phone: "081234567890", address: "Jl. Merdeka No. 1", keluhan: "Pusing dan demam sejak kemarin", createdDate: today },
+    { id: "1", name: "Rahmawati", age: 20, phone: "081234567890", address: "Jl. Merdeka No. 1", keluhan: "Pusing dan demam sejak kemarin", createdDate: today },
     { id: "2", name: "Budi Santoso", age: 35, phone: "082345678901", address: "Jl. Sudirman No. 5", keluhan: "Batuk berdahak", createdDate: today },
     { id: "3", name: "Siti Nurhaliza", age: 28, phone: "083456789012", address: "Jl. Gatot Subroto No. 3", keluhan: "Sakit perut", createdDate: today },
   ];
   localStorage.setItem(KEYS.PATIENTS, JSON.stringify(patients));
 
   const appointments: Appointment[] = [
-    { id: "a1", patientId: "1", patientName: "Fadhla Rahmawati", date: today, time: "08:00", keluhan: "Pusing dan demam", status: "antri" },
+    { id: "a1", patientId: "1", patientName: "Rahmawati", date: today, time: "08:00", keluhan: "Pusing dan demam", status: "antri" },
     { id: "a2", patientId: "2", patientName: "Budi Santoso", date: today, time: "09:00", keluhan: "Batuk berdahak", status: "antri" },
     { id: "a3", patientId: "3", patientName: "Siti Nurhaliza", date: today, time: "10:00", keluhan: "Sakit perut", status: "selesai", diagnosa: "Gastritis", resep: "Antasida 3x1" },
   ];
