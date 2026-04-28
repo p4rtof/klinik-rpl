@@ -8,6 +8,7 @@
 @theme {
   --color-primary: #0089FF;
   --color-primary-dark: #00529A;
+  --color-red-theme: #FF0000;
 
 }
 
@@ -29,5 +30,5 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: calibri;
-  font-size : 18px;
+  
 }
