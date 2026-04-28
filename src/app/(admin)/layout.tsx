@@ -93,7 +93,7 @@ export default function AdminLayout({
           <h2 className="text-3xl font-semibold text-primary">Klinik dr.Yofli</h2>
         </header>
 
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-white">{children}</main>
+        <main className="flex-1 p-1 md:p-4 overflow-y-auto bg-white">{children}</main>
       </div>
     </div>
   );
