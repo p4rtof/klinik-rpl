@@ -11,8 +11,8 @@ export default function DashboardPage() {
   return (
     <div className="max-w-8xl mx-auto space-y-6 text-black">
       {/* Header & Button Tambah */}
-      <div className="flex justify-between px-3 items-center mb-6">
-        <h1 className="text-3xl font-bold ">Selamat Datang, Admin</h1>
+      <div className="flex justify-between px-3 items-center mb-4">
+          <h1 className="text-3xl font-bold my-auto">Selamat Datang, Admin</h1>
         <button className="bg-green-theme hover:bg-green-theme-dark text-2xl text-white px-6 py-3 rounded-xl font-bold flex hover:cursor-pointer items-center gap-2 transition-all active:scale-95 shadow-md">
           <span className="text-2xl">+</span> Tambah Kunjungan
         </button>
@@ -24,12 +24,17 @@ export default function DashboardPage() {
         <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div>
             <h3 className="font-bold text-2xl">
-              Ringkasan Pasien Hari Ini{" "}
+              Ringkasan Pasien Hari Ini : {" "}
               <span className="text-primary font-semibold">
-                {new Date().toLocaleDateString("id-ID")}
+                {new Date().toLocaleDateString("id-ID", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
               </span>
             </h3>
-            <p className="text-md text-gray-400  mt-1">
+            <p className="text-lg text-gray-400  mt-1">
               Data pasien anda berdasarkan kategori kunjungan
             </p>
           </div>
@@ -85,19 +90,17 @@ export default function DashboardPage() {
               /> */}
               <p className="text-primary  text-xl font-semibold  uppercase">
                 {antreanNext.nama}
-                
               </p>
             </div>
             <p className="text-6xl font-bold text-primary">
               {antreanNext.nomor}
-             
             </p>
           </div>
         </div>
       </div>
 
       {/* Bagian Tabel */}
-      <div className="mt-8">
+      <div className="mt-">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Data Kunjungan Pasien</h2>
           <div className="flex gap-3">
