@@ -1,123 +1,177 @@
-import React from 'react';
+"use client";
 
-export default function AdminDashboard() {
+import React, { useState } from "react";
+
+export default function DashboardPage() {
+  // State data kosong untuk simulasi sebelum ada data dari backend
+  const [dataKunjungan, setDataKunjungan] = useState([]);
+  const [ringkasan, setRingkasan] = useState({ belum: 0, sudah: 0 });
+  const [antreanNext, setAntreanNext] = useState({ nama: "-", nomor: "-" });
+
   return (
-    <div className="space-y-6">
-      
-      {/* Header Halaman */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">Overview Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-1">Ringkasan data klinik dan jadwal hari ini.</p>
+    <div className="max-w-8xl mx-auto space-y-6 text-black">
+      {/* Header & Button Tambah */}
+      <div className="flex justify-between px-3 items-center mb-4">
+          <h1 className="text-3xl font-bold my-auto">Selamat Datang, Admin</h1>
+        <button className="bg-green-theme hover:bg-green-theme-dark text-2xl text-white px-6 py-3 rounded-xl font-bold flex hover:cursor-pointer items-center gap-2 transition-all active:scale-95 shadow-md">
+          <span className="text-2xl">+</span> Tambah Kunjungan
+        </button>
       </div>
 
-      {/* Grid Statistik (4 Cards) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        
-        {/* Card 1: Total Pasien */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+      {/* Ringkasan & Antrean Card */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Ringkasan Pasien */}
+        <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div>
-            <p className="text-sm text-gray-500 mb-1">Total Pasien</p>
-            <h3 className="text-2xl font-bold text-gray-800">1,245</h3>
-            <p className="text-xs text-green-500 mt-2 font-medium">+12% dari bulan lalu</p>
+            <h3 className="font-bold text-2xl">
+              Ringkasan Pasien Hari Ini : {" "}
+              <span className="text-primary font-semibold">
+                {new Date().toLocaleDateString("id-ID", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </span>
+            </h3>
+            <p className="text-lg text-gray-400  mt-1">
+              Data pasien anda berdasarkan kategori kunjungan
+            </p>
           </div>
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-xl">
-            🏥
+          <div className="flex gap-12 mt-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-50 flex items-center justify-center rounded-xl">
+                <img
+                  src="/componen-admin/pasien.svg"
+                  className="w-6 h-6"
+                  alt="icon"
+                />
+              </div>
+              <div>
+                <p className="text-lg font-medium text-black">
+                  Pasien Belum Diperiksa
+                </p>
+                <p className="text-3xl font-bold text-primary">
+                  {ringkasan.belum}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-50 flex items-center justify-center rounded-xl">
+                <img
+                  src="/componen-admin/pasien.svg"
+                  className="w-6 h-6"
+                  alt="icon"
+                />
+              </div>
+              <div>
+                <p className="text-lg font-medium text-black  ">
+                  Pasien Sudah Diperiksa
+                </p>
+                <p className="text-3xl font-bold text-primary">
+                  {ringkasan.sudah}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Card 2: Dokter Aktif */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Dokter Aktif</p>
-            <h3 className="text-2xl font-bold text-gray-800">24</h3>
-            <p className="text-xs text-gray-400 mt-2 font-medium">4 Dokter sedang praktik</p>
+        {/* Nomor Antrean Berikutnya */}
+        <div className="bg-white p-6  rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-6">
+          <h3 className="font-bold text-gray-800 text-2xl">
+            Nomor Antrean Berikutnya:
+          </h3>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* <img
+                src="/componen-admin/pasien.svg"
+                className="w-8 h-8 text-center"
+                alt="icon"
+              /> */}
+              <p className="text-primary  text-xl font-semibold  uppercase">
+                {antreanNext.nama}
+              </p>
+            </div>
+            <p className="text-6xl font-bold text-primary">
+              {antreanNext.nomor}
+            </p>
           </div>
-          <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center text-xl">
-            👨‍⚕️
-          </div>
-        </div>
-
-        {/* Card 3: Jadwal Hari Ini */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Jadwal Hari Ini</p>
-            <h3 className="text-2xl font-bold text-gray-800">48</h3>
-            <p className="text-xs text-orange-500 mt-2 font-medium">12 menunggu antrean</p>
-          </div>
-          <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center text-xl">
-            📅
-          </div>
-        </div>
-
-        {/* Card 4: Pendapatan */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Pendapatan Hari Ini</p>
-            <h3 className="text-2xl font-bold text-gray-800">Rp 4.5M</h3>
-            <p className="text-xs text-green-500 mt-2 font-medium">+5% dari kemarin</p>
-          </div>
-          <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center text-xl">
-            💰
-          </div>
-        </div>
-      </div>
-
-      {/* Tabel Jadwal Terdekat */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-gray-800">Antrean Pemeriksaan Terdekat</h2>
-          <button className="text-teal-600 text-sm font-medium hover:underline">Lihat Semua</button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500 text-sm border-b border-gray-100">
-                <th className="p-4 font-medium">No. Antrean</th>
-                <th className="p-4 font-medium">Nama Pasien</th>
-                <th className="p-4 font-medium">Dokter Tujuan</th>
-                <th className="p-4 font-medium">Poli</th>
-                <th className="p-4 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              <tr className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="p-4 font-medium text-gray-800">A-001</td>
-                <td className="p-4 text-gray-600">Budi Santoso</td>
-                <td className="p-4 text-gray-600">dr. Sarah Wijaya</td>
-                <td className="p-4 text-gray-600">Poli Umum</td>
-                <td className="p-4">
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
-                    Menunggu
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="p-4 font-medium text-gray-800">B-012</td>
-                <td className="p-4 text-gray-600">Siti Aminah</td>
-                <td className="p-4 text-gray-600">dr. Andi Pratama</td>
-                <td className="p-4 text-gray-600">Poli Gigi</td>
-                <td className="p-4">
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-600">
-                    Selesai
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="p-4 font-medium text-gray-800">A-002</td>
-                <td className="p-4 text-gray-600">Ahmad Dahlan</td>
-                <td className="p-4 text-gray-600">dr. Sarah Wijaya</td>
-                <td className="p-4 text-gray-600">Poli Umum</td>
-                <td className="p-4">
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-600">
-                    Diperiksa
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
 
+      {/* Bagian Tabel */}
+      <div className="mt-">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Data Kunjungan Pasien</h2>
+          <div className="flex gap-3">
+            <div className="relative flex items-center">
+              {/* Ikon di-set absolute dan ukurannya disesuaikan */}
+              <img
+                src="/componen-admin/cari.svg"
+                alt="cari"
+                className="absolute left-3 w-5 h-5 opacity-50 pointer-events-none"
+              />
+
+              {/* Input text */}
+              <input
+                type="text"
+                placeholder="Cari Pasien ..."
+                className="border border-gray-200 rounded-lg py-2.5 pr-4 pl-10 text-sm outline-none focus:ring-2 focus:ring-primary w-80 shadow-sm transition-all"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-primary text-white">
+                <tr>
+                  <th className="px-4 py-2 text-lg font-bold border-r border-white/50 border-2 text-center uppercase">
+                    Nomor RM
+                  </th>
+                  <th className="px-4 py-2 text-lg font-bold border-r border-white/50 border-2 text-center uppercase">
+                    Nama Pasien
+                  </th>
+                  <th className="px-4 py-2 text-lg font-bold border-r border-white/50 border-2 text-center uppercase">
+                    Jenis Kelamin
+                  </th>
+                  <th className="px-4 py-2 text-lg font-bold border-r border-white/50 border-2 text-center uppercase">
+                    Usia
+                  </th>
+                  <th className="px-4 py-2 text-lg font-bold border-r border-white/50 border-2 text-center uppercase">
+                    Nomor Antrian
+                  </th>
+                  <th className="px-4 py-2 text-lg font-bold text-center uppercase">
+                    Aksi
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="text-black font-bold">
+                {dataKunjungan.length > 0 ? (
+                  dataKunjungan.map((p, i) => (
+                    <tr
+                      key={i}
+                      className="border-b border-gray-100 hover:bg-blue-50/30 transition-colors"
+                    >
+                      {/* Mapping data di sini nanti */}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-4 py-10 text-center text-gray-400 italic font-medium bg-gray-50/30"
+                    >
+                      Belum ada data kunjungan hari ini.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

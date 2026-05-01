@@ -1,19 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏥 Klinik RPL — Sistem Informasi Klinik
 
-## Getting Started
+> Aplikasi web manajemen klinik berbasis **Next.js 16**, **React 19**, **TypeScript**, dan **Tailwind CSS v4**.
 
-<<<<<<< Updated upstream
+HEAD
+Updated upstream
 First, run the development server:
-=======
+
+
+login
 ---
 
 ## 👥 Pembagian Tim
 
 | Peran | Tanggung Jawab |
 |---|---|
+HEAD
 | **Frontend Admin** | Dashboard admin, data pasien, pembayaran |
 | **Frontend Dokter** | Dashboard dokter, jadwal periksa, rekam medis |
 | **Backend** | API Routes (`/api/admin`, `/api/auth`, `/api/doctor`) |
+
+| 🖥️ **Frontend Admin** | Dashboard admin, data pasien, pembayaran |
+| 🩺 **Frontend Dokter** | Dashboard dokter, jadwal periksa, rekam medis |
+| ⚙️ **Backend** | API Routes (`/api/admin`, `/api/auth`, `/api/doctor`) |
+login
 
 ---
 
@@ -29,7 +38,11 @@ First, run the development server:
 
 ---
 
+HEAD
 ## Cara Menjalankan Proyek
+
+## 🚀 Cara Menjalankan Proyek
+login
 
 ### 1. Clone Repository
 
@@ -45,29 +58,31 @@ npm install
 ```
 
 ### 3. Jalankan Development Server
->>>>>>> Stashed changes
+HEAD
+Stashed changes
+
+login
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000) di browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-<<<<<<< Updated upstream
+HEAD
+Updated upstream
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
-=======
+
 ## Struktur Folder
 
+
+## 📁 Struktur Folder
+
+login
 ```
 klinik-rpl/
 │
@@ -80,7 +95,11 @@ klinik-rpl/
 ├── src/
 │   └── app/
 │       │
+HEAD
 │       ├── (admin)/           # Halaman Frontend Admin
+
+│       ├── (admin)/           # 🖥️ Halaman Frontend Admin
+login
 │       │   ├── dashboard/
 │       │   │   └── page.tsx
 │       │   ├── data-pasien/
@@ -88,17 +107,29 @@ klinik-rpl/
 │       │   ├── pembayaran/
 │       │   └── layout.tsx
 │       │
+HEAD
 │       ├── (auth)/            # Autentikasi
 │       │   └── login/
 │       │       └── page.tsx
 │       │
 │       ├── (doctor)/          # Halaman Frontend Dokter
+
+│       ├── (auth)/            # 🔐 Autentikasi
+│       │   └── login/
+│       │       └── page.tsx
+│       │
+│       ├── (doctor)/          # 🩺 Halaman Frontend Dokter
+login
 │       │   ├── dashboard/
 │       │   ├── jadwal-periksa/
 │       │   ├── rekam-medis/
 │       │   └── layout.tsx
 │       │
+HEAD
 │       ├── api/               # Backend — API Routes
+
+│       ├── api/               # ⚙️ Backend — API Routes
+login
 │       │   ├── admin/
 │       │   ├── auth/
 │       │   └── doctor/
@@ -112,28 +143,40 @@ klinik-rpl/
 ├── tsconfig.json
 └── package.json
 ```
->>>>>>> Stashed changes
+HEAD
+Stashed changes
 
-To learn more about Next.js, take a look at the following resources:
+login
 
-<<<<<<< Updated upstream
+---
+
+HEAD
+Updated upstream
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-=======
+
 ## Panduan Per Peran
 
 ### Frontend Admin
->>>>>>> Stashed changes
+Stashed changes
 
-## Deploy on Vercel
+## 📖 Panduan Per Peran
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 🖥️ Frontend Admin
+login
 
-<<<<<<< Updated upstream
+**Lokasi file:** `src/app/(admin)/`
+
+**Halaman yang dikerjakan:**
+
+HEAD
+Updated upstream
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-=======
+
+
+login
 | Halaman | Path File | URL |
 |---|---|---|
 | Dashboard | `(admin)/dashboard/page.tsx` | `/dashboard` |
@@ -175,7 +218,11 @@ export default function DashboardPage() {
 
 ---
 
+HEAD
 ### Frontend Dokter
+
+### 🩺 Frontend Dokter
+login
 
 **Lokasi file:** `src/app/(doctor)/`
 
@@ -207,11 +254,19 @@ export default async function RekamMedisPage() {
 }
 ```
 
+HEAD
 > Layout bersama dokter ada di `src/app/(doctor)/layout.tsx`.
 
 ---
 
 ### Autentikasi (Auth)
+
+> 💡 Layout bersama dokter ada di `src/app/(doctor)/layout.tsx`.
+
+---
+
+### 🔐 Autentikasi (Auth)
+login
 
 **Lokasi file:** `src/app/(auth)/login/page.tsx`
 
@@ -219,7 +274,11 @@ Halaman login digunakan oleh **admin maupun dokter**. Setelah login berhasil, re
 
 ---
 
+HEAD
 ### Backend — API Routes
+
+### ⚙️ Backend — API Routes
+login
 
 **Lokasi file:** `src/app/api/`
 
@@ -248,7 +307,11 @@ export async function POST(request: Request) {
 }
 ```
 
+HEAD
 > Beri tahu tim Frontend nama endpoint yang sudah siap dipakai beserta format response-nya.
+
+> 💡 Beri tahu tim Frontend nama endpoint yang sudah siap dipakai beserta format response-nya.
+login
 
 ---
 
@@ -306,5 +369,9 @@ npm run lint     # Cek kode dengan ESLint
 
 ---
 
+HEAD
 <p align="center">Proyek RPL · Kelompok Klinik · 2026</p>
->>>>>>> Stashed changes
+Stashed changes
+
+<p align="center">Proyek RPL · Kelompok Klinik · 2026</p>
+login
