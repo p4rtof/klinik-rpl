@@ -12,7 +12,7 @@ export default function DashboardPage() {
     <div className="max-w-8xl mx-auto space-y-6 text-black">
       {/* Header & Button Tambah */}
       <div className="flex justify-between px-3 items-center mb-4">
-          <h1 className="text-3xl font-bold my-auto">Selamat Datang, Admin</h1>
+          <h1 className="text-3xl font-bold my-auto">Selamat Datang, Dokter</h1>
         <button className="bg-green-theme hover:bg-green-theme-dark text-2xl text-white px-6 py-3 rounded-xl font-bold flex hover:cursor-pointer items-center gap-2 transition-all active:scale-95 shadow-md">
           <span className="text-2xl">+</span> Tambah Kunjungan
         </button>
