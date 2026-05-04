@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+
+
+model User {
+  id          String   @id @default(uuid())
+  username    String   @unique
+  password    String
+  role        String
+  namaLengkap String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  dokter      Dokter?
+}
+
+model Pasien {
+  id            String       @id @default(uuid())
+  nik           String       @unique
+  nama          String
+  tanggalLahir  DateTime
+  jenisKelamin  String
+  alamat        String?
+  noTelepon     String?
+  riwayatAlergi String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  antrian       Antrian[]
+  rekamMedis    RekamMedis[]
+}
+
+model Dokter {
+  id            String       @id @default(uuid())
+  userId        String       @unique
+  nama          String
+  spesialisasi  String
+  jadwalPraktik String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  antrian       Antrian[]
+  rekamMedis    RekamMedis[]
+}
+
+model Antrian {
+  id           String        @id @default(uuid())
+  pasienId     String
+  dokterId     String
+  tanggal      DateTime
+  nomorAntrian Int
+  status       String        @default("MENUNGGU")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  pasien       Pasien        @relation(fields: [pasienId], references: [id], onDelete: Cascade)
+  dokter       Dokter        @relation(fields: [dokterId], references: [id], onDelete: Cascade)
+}
+
+model RekamMedis {
+  id             String   @id @default(uuid())
+  pasienId       String
+  dokterId       String
+  tanggalPeriksa DateTime
+  keluhan        String
+  diagnosa       String
+  tindakan       String?
+  resepObat      String?
+  catatan        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  pasien         Pasien   @relation(fields: [pasienId], references: [id], onDelete: Cascade)
+  dokter         Dokter   @relation(fields: [dokterId], references: [id], onDelete: Cascade)
+}

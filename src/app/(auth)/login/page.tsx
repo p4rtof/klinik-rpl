@@ -16,8 +16,8 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Tembak API Backe nd (Ganti URL ini dengan endpoint API aslimu)
-      const response = await fetch("http://localhost:8000/api/login", {
+      // Tembak API Backend
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -27,16 +27,16 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      if (response.ok) {
-        if (data.role === "admin") {
+      if (response.ok && data.success) {
+        if (data.data.role === "ADMIN") {
           router.push("/dashboard");
-        } else if (data.role === "dokter") {
+        } else if (data.data.role === "DOKTER") {
           router.push("/patients");
         } else {
           setError("Role tidak dikenali!");
         }
       } else {
-        setError(data.message || "Username atau password salah!");
+        setError(data.error || "Username atau password salah!");
       }
     } catch (err) {
       setError("Gagal terhubung ke server backend.");
@@ -56,10 +56,10 @@ export default function LoginPage() {
             Aplikasi Sistem Administrasi Klinik dr. Yofli
           </div>
         </div>
-        <img 
-        src="/login_img.svg"
-            alt="login"
-            className="w-[350px] h-auto mt-8 mx-auto"
+        <img
+          src="/login_img.svg"
+          alt="login"
+          className="w-[350px] h-auto mt-8 mx-auto"
         />
       </div>
 
@@ -107,11 +107,10 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full text-white font-bold py-3 rounded-xl transition-all ${
-              isLoading
+            className={`w-full text-white font-bold py-3 rounded-xl transition-all ${isLoading
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-primary hover:bg-primary-dark"
-            }`}
+              }`}
           >
             {isLoading ? "Memproses..." : "Masuk"}
           </button>
