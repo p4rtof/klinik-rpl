@@ -78,3 +78,100 @@ Setiap respons dari API selalu menggunakan format standar:
 
 Untuk akun default, gunakan *seeder*:
 `npx tsx prisma/seed.ts` (Akan memberikan akun **admin** dan **dryofli**).
+
+---
+
+## 6. Contoh Integrasi Frontend (Fetch API)
+
+Berikut adalah beberapa contoh cara melakukan pemanggilan API dari sisi *frontend* menggunakan `fetch`.
+
+### A. Proses Login (Autentikasi)
+Saat login berhasil, server akan mengirimkan HTTP-Only Cookie bernama `token`. Cookie ini akan otomatis dikirim kembali oleh browser pada request selanjutnya.
+
+```javascript
+async function login(username, password) {
+  const response = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+
+  const result = await response.json();
+  if (result.success) {
+    console.log('Login Berhasil:', result.data);
+    // Simpan data user ke State/Context (ID, Nama, Role, dll)
+    return result.data;
+  } else {
+    alert(result.error);
+  }
+}
+```
+
+### B. Mengambil Daftar Pasien (dengan Pencarian)
+Endpoint ini mendukung parameter `search` untuk mencari berdasarkan nama.
+
+```javascript
+async function getPasien(query = '') {
+  const response = await fetch(`/api/pasien?search=${query}`);
+  const result = await response.json();
+  
+  if (result.success) {
+    return result.data; // Array of Pasien
+  }
+  return [];
+}
+```
+
+### C. Menambahkan Pasien Baru (Admin)
+Pastikan format `tanggalLahir` adalah ISO-8601 string.
+
+```javascript
+async function tambahPasien(formData) {
+  const response = await fetch('/api/pasien', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      nik: formData.nik,            // 16 digit string
+      nama: formData.nama,
+      tanggalLahir: new Date(formData.tanggalLahir).toISOString(),
+      jenisKelamin: formData.jenisKelamin, // 'LAKI_LAKI' atau 'PEREMPUAN'
+      alamat: formData.alamat,
+      noTelepon: formData.noTelepon,
+    }),
+  });
+
+  const result = await response.json();
+  if (result.success) {
+    alert('Pasien berhasil ditambahkan');
+  } else {
+    console.error('Gagal:', result.details || result.error);
+  }
+}
+```
+
+### D. Mengubah Status Antrian (Dokter/Admin)
+Digunakan untuk mengubah status dari `MENUNGGU` ke `DIPERIKSA`.
+
+```javascript
+async function updateStatusAntrian(antrianId, newStatus) {
+  const response = await fetch(`/api/antrian/${antrianId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: newStatus }),
+  });
+
+  const result = await response.json();
+  return result.success;
+}
+```
+
+---
+
+## 7. Catatan Penting untuk Frontend
+
+1.  **Format Tanggal**: Selalu gunakan `.toISOString()` saat mengirim data tanggal ke backend (terutama untuk `tanggalLahir` di Pasien).
+2.  **HTTP-Only Cookies**: Anda tidak perlu (dan tidak bisa) membaca token JWT lewat JavaScript. Browser akan menanganinya secara otomatis selama `credentials: 'include'` (jika cross-origin) atau secara default jika satu domain.
+3.  **Role-Based Access**: 
+    *   Jika Anda mencoba mengakses `/api/pasien` (POST/PUT/DELETE) tanpa login sebagai `ADMIN`, Anda akan menerima error `403 Forbidden`.
+    *   Begitu juga dengan `/api/rekam-medis` yang hanya bisa diakses oleh `DOKTER`.
+4.  **Error Handling**: Backend selalu memberikan field `error` dan terkadang `details` (jika ada kesalahan validasi Zod). Pastikan untuk mengecek `result.success` sebelum memproses data.
