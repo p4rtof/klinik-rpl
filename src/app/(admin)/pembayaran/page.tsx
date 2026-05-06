@@ -91,13 +91,13 @@ export default function PembayaranPage() {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="px-6 py-20 text-center">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-3xl opacity-20">🧾</div>
-                    <p className="text-gray-400 text-xl italic font-medium">
+                <td colSpan={8} className="px-6 py-4 text-center">
+                  
+                    {/* <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-3xl opacity-20">🧾</div> */}
+                    <p className="py-10 text-gray-400 text-xl font-bold italic font-medium">
                       Belum ada riwayat pembayaran hari ini.
                     </p>
-                  </div>
+                  
                 </td>
               </tr>
             )}

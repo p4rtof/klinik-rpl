@@ -26,12 +26,13 @@ export default function LoginPage() {
 
       if (response.ok) {
         // Redirect menggunakan role dari Adit (ADMIN / DOKTER)
+        
         const userRole = resJson.data?.role;
 
         if (userRole === "ADMIN") {
           router.push("/dashboard"); 
         } else if (userRole === "DOKTER") {
-          router.push("/doctor/dashboard"); 
+          router.push("/dashboard-dokter"); 
         } else {
           setError("Role tidak dikenali!");
         }
