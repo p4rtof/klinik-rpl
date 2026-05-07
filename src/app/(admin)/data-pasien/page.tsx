@@ -19,8 +19,8 @@ export default function DataPasienPage() {
   const [isEdit, setIsEdit] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
+  // State Form (TANPA NIK karena pakai No RM otomatis dari backend)
   const [formData, setFormData] = useState({
-    nik: "",
     nama: "",
     tanggalLahir: "",
     jenisKelamin: "",
@@ -28,10 +28,12 @@ export default function DataPasienPage() {
     noTelepon: "",
   });
 
-  // Fetch API dengan parameter Search & Sort (Server-side)
+  // Fetch API dengan parameter Search
   const fetchPasien = async () => {
     try {
-      const res = await fetch(`/api/pasien?page=1&limit=10&search=${searchTerm}&sortBy=${sortBy}`);
+      const res = await fetch(`/api/pasien?search=${searchTerm}`, {
+        headers: { "x-user-role": "ADMIN" }, // Wajib agar tidak 403 Forbidden
+      });
       const json = await res.json();
       if (json.success) setPasienList(json.data);
     } catch (err) {
@@ -44,7 +46,6 @@ export default function DataPasienPage() {
     const delayDebounceFn = setTimeout(() => {
       fetchPasien();
     }, 500);
-
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm, sortBy]);
 
@@ -72,7 +73,6 @@ export default function DataPasienPage() {
   // --- LOGIKA EDIT ---
   const handleEdit = (pasien: any) => {
     setFormData({
-      nik: pasien.nik,
       nama: pasien.nama,
       tanggalLahir: pasien.tanggalLahir ? new Date(pasien.tanggalLahir).toISOString().split("T")[0] : "",
       jenisKelamin: pasien.jenisKelamin,
@@ -85,7 +85,7 @@ export default function DataPasienPage() {
   };
 
   const handleTambahBaru = () => {
-    setFormData({ nik: "", nama: "", tanggalLahir: "", jenisKelamin: "", alamat: "", noTelepon: "" });
+    setFormData({ nama: "", tanggalLahir: "", jenisKelamin: "", alamat: "", noTelepon: "" });
     setIsEdit(false);
     setEditId(null);
     setShowForm(true);
@@ -96,10 +96,19 @@ export default function DataPasienPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const dataToSend = {
-        ...formData,
-        tanggalLahir: new Date(formData.tanggalLahir).toISOString(),
+      // Bersihkan data agar tidak ditolak Zod Backend
+      const dataToSend: any = {
+        nama: formData.nama,
+        jenisKelamin: formData.jenisKelamin,
+        tanggalLahir: formData.tanggalLahir, // Kirim string asli YYYY-MM-DD
       };
+
+      if (formData.noTelepon && formData.noTelepon.trim() !== "") {
+        dataToSend.noTelepon = formData.noTelepon;
+      }
+      if (formData.alamat && formData.alamat.trim() !== "") {
+        dataToSend.alamat = formData.alamat;
+      }
 
       const url = isEdit ? `/api/pasien/${editId}` : "/api/pasien";
       const method = isEdit ? "PUT" : "POST";
@@ -108,17 +117,18 @@ export default function DataPasienPage() {
         method: method,
         headers: {
           "Content-Type": "application/json",
-          "x-user-role": "ADMIN",
+          "x-user-role": "ADMIN", // Wajib ada
         },
         body: JSON.stringify(dataToSend),
       });
 
-      if (res.ok) {
+      const json = await res.json();
+      if (res.ok && json.success) {
         setShowForm(false);
         fetchPasien();
       } else {
-        const data = await res.json();
-        alert(data.error || "Gagal menyimpan");
+        const errorMsg = json.details?.[0]?.message || json.error || "Gagal menyimpan";
+        alert(errorMsg);
       }
     } catch (err) {
       alert("Koneksi ke server gagal");
@@ -160,7 +170,7 @@ export default function DataPasienPage() {
         <div className="relative w-full md:w-96">
           <input
             type="text"
-            placeholder="Cari nama, NIK, atau no. telp..."
+            placeholder="Cari nama atau no. telp..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full border-2 border-gray-100 p-3 pl-11 rounded-xl focus:border-primary outline-none shadow-sm"
@@ -191,14 +201,6 @@ export default function DataPasienPage() {
               <div className="grid grid-cols-1 gap-4">
                 <input
                   type="text"
-                  placeholder="NIK (16 Digit)"
-                  required
-                  value={formData.nik}
-                  className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none"
-                  onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
-                />
-                <input
-                  type="text"
                   placeholder="Nama Lengkap"
                   required
                   value={formData.nama}
@@ -226,14 +228,13 @@ export default function DataPasienPage() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Nomor Telepon"
-                  required
+                  placeholder="Nomor Telepon (Opsional)"
                   value={formData.noTelepon}
                   className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none"
                   onChange={(e) => setFormData({ ...formData, noTelepon: e.target.value })}
                 />
                 <textarea
-                  placeholder="Alamat Lengkap"
+                  placeholder="Alamat Lengkap (Opsional)"
                   value={formData.alamat}
                   className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none h-24 resize-none"
                   onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
@@ -265,7 +266,7 @@ export default function DataPasienPage() {
         <table className="w-full text-left border-collapse">
           <thead className="bg-primary text-white text-center">
             <tr>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">ID Pasien</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">No. RM</th>
               <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Nama Lengkap</th>
               <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Tanggal Lahir</th>
               <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Jenis Kelamin</th>
@@ -275,56 +276,55 @@ export default function DataPasienPage() {
           </thead>
           <tbody className="divide-y divide-gray-100 text-center font-semibold">
             {pasienList.length > 0 ? (
-              pasienList.map((pasien: any, index) => {
-                const customId = `P${(index + 1).toString().padStart(4, "0")}`;
-                return (
-                  <tr key={index} className="hover:bg-blue-50/50 transition-colors text-md">
-                    <td className="px-4 py-4">{customId}</td>
-                    <td className="px-4 py-4 text-left">{pasien.nama}</td>
-                    <td className="px-4 py-4">
-                      {new Date(pasien.tanggalLahir).toLocaleDateString("id-ID", {
-                        day: "2-digit", month: "long", year: "numeric",
-                      })}
-                    </td>
-                    <td className="px-4 py-4">
-                      {pasien.jenisKelamin === "LAKI_LAKI" ? "Laki-laki" : "Perempuan"}
-                    </td>
-                    <td className="px-4 py-4">{pasien.noTelepon || "-"}</td>
-                    <td className="px-4 py-4 flex justify-center items-center gap-2">
-                      <Link
-                        href={`/data-pasien/${customId}?uid=${pasien.id}`}
-                        className="p-2 hover:bg-blue-100 rounded-lg transition-colors inline-block"
-                        title="Detail"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </Link>
+              pasienList.map((pasien: any) => (
+                <tr key={pasien.id} className="hover:bg-blue-50/50 transition-colors text-md">
+                  <td className="px-4 py-4 text-primary font-bold">{pasien.noRm || "-"}</td>
+                  <td className="px-4 py-4 text-left">{pasien.nama}</td>
+                  <td className="px-4 py-4">
+                    {pasien.tanggalLahir ? new Date(pasien.tanggalLahir).toLocaleDateString("id-ID", {
+                      day: "2-digit", month: "long", year: "numeric",
+                    }) : "-"}
+                  </td>
+                  <td className="px-4 py-4">
+                    {pasien.jenisKelamin === "LAKI_LAKI" ? "Laki-laki" : "Perempuan"}
+                  </td>
+                  <td className="px-4 py-4">{pasien.noTelepon || "-"}</td>
+                  <td className="px-4 py-4 flex justify-center items-center gap-2">
+                    
+                    {/* ICON MATA - Arahkan ke /data-pasien/[id]/page.tsx */}
+                    <Link
+                      href={`/data-pasien/${pasien.id}`}
+                      className="p-2 hover:bg-blue-100 rounded-lg transition-colors inline-block"
+                      title="Detail"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </Link>
 
-                      <button
-                        onClick={() => handleEdit(pasien)}
-                        className="p-2 hover:bg-yellow-100 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
+                    <button
+                      onClick={() => handleEdit(pasien)}
+                      className="p-2 hover:bg-yellow-100 rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
 
-                      <button
-                        onClick={() => triggerDelete(pasien.id)}
-                        className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                        title="Hapus"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
+                    <button
+                      onClick={() => triggerDelete(pasien.id)}
+                      className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                      title="Hapus"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              ))
             ) : (
               <tr>
                 <td colSpan={6} className="px-6 py-20 text-gray-400 italic">
