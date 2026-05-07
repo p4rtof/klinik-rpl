@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { updateStatusJadwalSchema } from "@/lib/validations";
+import { updateStatusPembayaranSchema } from "@/lib/validations";
 
-// PUT /api/antrian/[id]
-// Body: { status: "MENUNGGU" | "DIPERIKSA" | "SELESAI" | "BATAL" }
+// PUT /api/pembayaran/[id]
+// Body: { status: "BELUM_BAYAR" | "LUNAS" }
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const role = request.headers.get("x-user-role");
-    if (role !== "ADMIN" && role !== "DOKTER") {
+    if (role !== "ADMIN") {
       return NextResponse.json(
         { success: false, error: "Forbidden" },
         { status: 403 },
@@ -19,7 +19,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const parseResult = updateStatusJadwalSchema.safeParse(body);
+    const parseResult = updateStatusPembayaranSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
         {
@@ -31,24 +31,15 @@ export async function PUT(
       );
     }
 
-    const jadwal = await prisma.jadwal.findUnique({ where: { id } });
-    if (!jadwal) {
+    const pembayaran = await prisma.pembayaran.findUnique({ where: { id } });
+    if (!pembayaran) {
       return NextResponse.json(
-        { success: false, error: "Jadwal tidak ditemukan" },
+        { success: false, error: "Data pembayaran tidak ditemukan" },
         { status: 404 },
       );
     }
 
-    // Dokter hanya bisa ubah antrian yang ditugaskan ke dia
-    const userId = request.headers.get("x-user-id");
-    if (role === "DOKTER" && jadwal.dokterId !== userId) {
-      return NextResponse.json(
-        { success: false, error: "Forbidden" },
-        { status: 403 },
-      );
-    }
-
-    const updated = await prisma.jadwal.update({
+    const updated = await prisma.pembayaran.update({
       where: { id },
       data: { status: parseResult.data.status },
     });
@@ -56,10 +47,10 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       data: updated,
-      message: "Status antrian diperbarui",
+      message: "Status pembayaran diperbarui",
     });
   } catch (error) {
-    console.error("[PUT /api/antrian/[id]]", error);
+    console.error("[PUT /api/pembayaran/[id]]", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
       { status: 500 },

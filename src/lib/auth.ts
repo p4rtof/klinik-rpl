@@ -8,24 +8,21 @@ export interface JwtPayload {
   username: string;
   role: 'ADMIN' | 'DOKTER';
   namaLengkap: string;
-  dokterId?: string; // Jika dia dokter
 }
 
 export async function signToken(payload: JwtPayload): Promise<string> {
-  const token = await new SignJWT({ ...payload })
+  return await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('8h') // Token berlaku 8 jam
+    .setExpirationTime('8h')
     .sign(key);
-    
-  return token;
 }
 
 export async function verifyToken(token: string): Promise<JwtPayload | null> {
   try {
     const { payload } = await jwtVerify(token, key);
     return payload as unknown as JwtPayload;
-  } catch (error) {
-    return null; // Token tidak valid atau expired
+  } catch {
+    return null;
   }
 }

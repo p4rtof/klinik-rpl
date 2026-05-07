@@ -1,177 +1,513 @@
-# Dokumentasi Backend: Sistem Informasi Klinik
+# Dokumentasi Backend — Sistem Catatan Dokter Klinik dr. Yofli
 
-Dokumen ini berisi penjelasan lengkap mengenai teknologi, arsitektur, struktur file, dan spesifikasi API yang telah diimplementasikan pada Backend Sistem Informasi Klinik (klinik-rpl).
-
-## 1. Full Tech Stack (Backend)
-
-*   **Framework**: Next.js 16 (App Router / API Routes)
-*   **Database**: SQLite (via `dev.db` untuk *development*)
-*   **ORM**: Prisma Client & Prisma Schema
-*   **Validasi Data**: Zod
-*   **Autentikasi & Keamanan**: 
-    *   JWT (JSON Web Token) menggunakan library `jose` (kompatibel dengan Edge Runtime Next.js).
-    *   HTTP-Only Cookies untuk menyimpan token secara aman.
-    *   *Hashing* password menggunakan `bcryptjs`.
-*   **Bahasa**: TypeScript
+> **Untuk Tim Frontend** — Panduan lengkap menggunakan backend klinik.
+> Diperbarui sesuai dokumen RPL (ERD 3NF).
 
 ---
 
-## 2. Struktur Direktori Utama
+## ⚡ Cara Tercepat: Gunakan API Client Helper
 
-*   `prisma/schema.prisma` : File pusat yang berisi desain tabel database (Models) dan konfigurasi SQLite.
-*   `src/lib/prisma.ts` : Konfigurasi Singleton Prisma Client agar koneksi database efisien.
-*   `src/lib/auth.ts` : Utilitas untuk membuat (*sign*) dan memverifikasi (*verify*) token JWT.
-*   `src/lib/validations.ts` : Skema Zod untuk memvalidasi *request body* yang masuk dari *frontend*.
-*   `src/proxy.ts` : Middleware pelindung. Mencegat semua permintaan (kecuali login) ke `/api/*` untuk memastikan *user* memiliki token JWT yang valid.
-*   `src/app/api/...` : Folder yang berisi seluruh rute API backend (Route Handlers).
+Semua endpoint sudah dibungkus menjadi fungsi siap pakai di **`src/lib/api.ts`**.
+Tidak perlu menulis `fetch` sendiri. Cukup import dan panggil fungsinya.
 
----
-
-## 3. Spesifikasi Database (Models)
-
-Sistem menggunakan 5 entitas utama:
-1.  **User**: Menyimpan data autentikasi (Username, Password Hashed, Role: `ADMIN` / `DOKTER`).
-2.  **Dokter**: Menyimpan profil dokter (Nama, Spesialisasi) yang berelasi dengan User.
-3.  **Pasien**: Menyimpan data induk pasien (NIK, Nama, Kelahiran, dll).
-4.  **Antrian**: Menyimpan antrean kunjungan (Pasien, Dokter, Status: `MENUNGGU`|`DIPERIKSA`|`SELESAI`).
-5.  **RekamMedis**: Menyimpan histori pemeriksaan (Keluhan, Diagnosa, Resep).
-
----
-
-## 4. Spesifikasi Endpoint API Terdaftar
-
-Setiap respons dari API selalu menggunakan format standar:
-`{ success: boolean, data?: sembarang, message?: string, error?: string }`
-
-### Autentikasi
-*   **`POST /api/auth/login`**: Memvalidasi kredensial, memberikan HTTP-Only cookie berisikan JWT.
-*   **`POST /api/auth/logout`**: Menghapus cookie token.
-
-### Manajemen Pasien (Akses: ADMIN)
-*   **`GET /api/pasien`**: Mengambil semua daftar pasien. Mendukung pencarian dengan `?search=nama`.
-*   **`POST /api/pasien`**: Menambahkan pasien baru.
-*   **`GET /api/pasien/[id]`**: Mengambil detail satu pasien.
-*   **`PUT /api/pasien/[id]`**: Mengubah data pasien.
-*   **`DELETE /api/pasien/[id]`**: Menghapus data pasien.
-
-### Manajemen Dokter
-*   **`GET /api/dokter`**: Mengambil daftar dokter (untuk pilihan saat mendaftar antrean).
-*   **`GET /api/dokter/[id]`**: Mengambil profil dokter spesifik.
-
-### Manajemen Antrian (Akses: ADMIN & DOKTER)
-*   **`GET /api/antrian`**: Mendapatkan antrean hari ini. Bisa di-filter `?dokterId=xxx`.
-*   **`POST /api/antrian`**: (ADMIN) Menambahkan pasien ke antrean dokter.
-*   **`PUT /api/antrian/[id]`**: (DOKTER/ADMIN) Mengubah status antrean (misal dari MENUNGGU ke DIPERIKSA).
-
-### Manajemen Rekam Medis (Akses: DOKTER)
-*   **`POST /api/rekam-medis`**: Menyimpan hasil pemeriksaan. Otomatis mengubah status antrean menjadi SELESAI.
-*   **`GET /api/rekam-medis/pasien/[id]`**: Melihat riwayat pemeriksaan pasien.
-
----
-
-## 5. Cara Menjalankan Project
-
-1.  Jalankan instalasi *package*: `npm install`
-2.  Pastikan *file* `.env` ada dengan isi `DATABASE_URL="file:./dev.db"`.
-3.  Terapkan skema ke database SQLite: `npx prisma db push`
-4.  Jalankan server: `npm run dev`
-
-Untuk akun default, gunakan *seeder*:
-`npx tsx prisma/seed.ts` (Akan memberikan akun **admin** dan **dryofli**).
-
----
-
-## 6. Contoh Integrasi Frontend (Fetch API)
-
-Berikut adalah beberapa contoh cara melakukan pemanggilan API dari sisi *frontend* menggunakan `fetch`.
-
-### A. Proses Login (Autentikasi)
-Saat login berhasil, server akan mengirimkan HTTP-Only Cookie bernama `token`. Cookie ini akan otomatis dikirim kembali oleh browser pada request selanjutnya.
-
-```javascript
-async function login(username, password) {
-  const response = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  });
-
-  const result = await response.json();
-  if (result.success) {
-    console.log('Login Berhasil:', result.data);
-    // Simpan data user ke State/Context (ID, Nama, Role, dll)
-    return result.data;
-  } else {
-    alert(result.error);
-  }
-}
+```ts
+// Cukup import fungsi yang dibutuhkan
+import { getPasienList, createPasien, login } from '@/lib/api';
 ```
 
-### B. Mengambil Daftar Pasien (dengan Pencarian)
-Endpoint ini mendukung parameter `search` untuk mencari berdasarkan nama.
+> **Catatan penting:** Semua fungsi mengembalikan `Promise`. Gunakan `await` atau `.then()`.
+> Jika terjadi error (misal: 403 Forbidden, 404 Not Found), fungsi akan **melempar `Error`**
+> dengan pesan dari server — tangkap dengan `try/catch`.
 
-```javascript
-async function getPasien(query = '') {
-  const response = await fetch(`/api/pasien?search=${query}`);
-  const result = await response.json();
-  
-  if (result.success) {
-    return result.data; // Array of Pasien
-  }
-  return [];
-}
+---
+
+## Tech Stack
+
+| Teknologi | Keterangan |
+|---|---|
+| Next.js 16 (App Router) | Framework & API Routes |
+| Prisma ORM v5 | Akses database |
+| SQLite (`prisma/dev.db`) | Database development |
+| Zod | Validasi request body |
+| `jose` + `bcryptjs` | JWT Auth & hashing password |
+| HTTP-Only Cookie | Penyimpanan token login (otomatis oleh browser) |
+
+---
+
+## Struktur Database (3NF)
+
+```
+User ──────────────── Jadwal ──────── Pasien
+ │                       │               │
+ │                   RekamMedis ─────────┤
+ │                       │               │
+ └──── (dokterId) ───────┤           Pembayaran
+                      Diagnosis
+                      Resep
+                      Rujukan
 ```
 
-### C. Menambahkan Pasien Baru (Admin)
-Pastikan format `tanggalLahir` adalah ISO-8601 string.
+| Tabel | Keterangan |
+|---|---|
+| `User` | Admin & Dokter (dibedakan via `role`) |
+| `Pasien` | Data induk pasien, memiliki `noRm` unik otomatis |
+| `Jadwal` | Antrian kunjungan (alias endpoint: `/api/antrian`) |
+| `RekamMedis` | Catatan pemeriksaan per kunjungan |
+| `Diagnosis` | Hasil diagnosis (relasi ke `RekamMedis`) |
+| `Resep` | Daftar obat (relasi ke `RekamMedis`) |
+| `Rujukan` | Data rujukan (relasi ke `RekamMedis`) |
+| `Pembayaran` | Transaksi pembayaran pasien |
 
-```javascript
-async function tambahPasien(formData) {
-  const response = await fetch('/api/pasien', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      nik: formData.nik,            // 16 digit string
-      nama: formData.nama,
-      tanggalLahir: new Date(formData.tanggalLahir).toISOString(),
-      jenisKelamin: formData.jenisKelamin, // 'LAKI_LAKI' atau 'PEREMPUAN'
-      alamat: formData.alamat,
-      noTelepon: formData.noTelepon,
-    }),
-  });
+---
 
-  const result = await response.json();
-  if (result.success) {
-    alert('Pasien berhasil ditambahkan');
-  } else {
-    console.error('Gagal:', result.details || result.error);
-  }
-}
+## Format Respons API
+
+```json
+// Sukses
+{ "success": true, "data": { ... }, "message": "..." }
+
+// Gagal
+{ "success": false, "error": "Pesan error", "details": [...] }
 ```
 
-### D. Mengubah Status Antrian (Dokter/Admin)
-Digunakan untuk mengubah status dari `MENUNGGU` ke `DIPERIKSA`.
+> Saat menggunakan fungsi dari `api.ts`, format ini sudah ditangani otomatis.
+> Fungsi langsung mengembalikan isi `data`, bukan seluruh objek respons.
 
-```javascript
-async function updateStatusAntrian(antrianId, newStatus) {
-  const response = await fetch(`/api/antrian/${antrianId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: newStatus }),
-  });
+---
 
-  const result = await response.json();
-  return result.success;
-}
+## Autentikasi
+
+1. Panggil `login()` → cookie `token` otomatis tersimpan oleh browser
+2. Semua request berikutnya **tidak perlu kirim token manual** — browser kirim otomatis
+3. Halaman yang membutuhkan login sudah **otomatis dilindungi** oleh `proxy.ts`
+
+---
+
+## 🗂️ Referensi Fungsi API Client
+
+### Tipe Data yang Dikembalikan
+
+Semua tipe sudah tersedia di `@/lib/api` dan bisa di-import langsung:
+
+```ts
+import type { ApiUser, ApiPasien, ApiAntrian, ApiRekamMedis, ApiPembayaran } from '@/lib/api';
 ```
 
 ---
 
-## 7. Catatan Penting untuk Frontend
+### 🔐 Auth
 
-1.  **Format Tanggal**: Selalu gunakan `.toISOString()` saat mengirim data tanggal ke backend (terutama untuk `tanggalLahir` di Pasien).
-2.  **HTTP-Only Cookies**: Anda tidak perlu (dan tidak bisa) membaca token JWT lewat JavaScript. Browser akan menanganinya secara otomatis selama `credentials: 'include'` (jika cross-origin) atau secara default jika satu domain.
-3.  **Role-Based Access**: 
-    *   Jika Anda mencoba mengakses `/api/pasien` (POST/PUT/DELETE) tanpa login sebagai `ADMIN`, Anda akan menerima error `403 Forbidden`.
-    *   Begitu juga dengan `/api/rekam-medis` yang hanya bisa diakses oleh `DOKTER`.
-4.  **Error Handling**: Backend selalu memberikan field `error` dan terkadang `details` (jika ada kesalahan validasi Zod). Pastikan untuk mengecek `result.success` sebelum memproses data.
+#### `login(username, password)`
+Login ke sistem. Cookie disimpan otomatis, tidak perlu simpan token secara manual.
+
+```ts
+import { login } from '@/lib/api';
+
+const user = await login('admin', 'admin123');
+// user → { id, username, role: 'ADMIN', namaLengkap, spesialisasi }
+
+// Redirect berdasarkan role:
+if (user.role === 'ADMIN') router.push('/dashboard');
+if (user.role === 'DOKTER') router.push('/patients');
+```
+
+---
+
+#### `getMe()`
+Cek siapa yang sedang login. Panggil di awal halaman untuk validasi sesi.
+
+```ts
+import { getMe } from '@/lib/api';
+
+const user = await getMe();
+// user → { id, username, role, namaLengkap, spesialisasi }
+```
+
+---
+
+#### `logout()`
+Hapus sesi login. Cookie JWT langsung dihapus dari browser.
+
+```ts
+import { logout } from '@/lib/api';
+
+await logout();
+router.push('/login');
+```
+
+---
+
+### 🏥 Pasien *(Akses: ADMIN)*
+
+#### `getPasienList(search?)`
+Ambil semua pasien. Opsional: filter berdasarkan nama.
+
+```ts
+import { getPasienList } from '@/lib/api';
+
+// Semua pasien
+const semua = await getPasienList();
+
+// Filter berdasarkan nama
+const hasil = await getPasienList('Budi');
+// hasil → ApiPasien[]
+```
+
+---
+
+#### `getPasien(id)`
+Ambil detail satu pasien beserta seluruh riwayat rekam medis dan pembayaran.
+
+```ts
+import { getPasien } from '@/lib/api';
+
+const pasien = await getPasien('uuid-pasien');
+// pasien → { id, noRm, nama, ..., rekamMedis: [...], pembayaran: [...] }
+```
+
+---
+
+#### `createPasien(data)`
+Tambah pasien baru. `noRm` di-generate otomatis oleh server.
+
+```ts
+import { createPasien } from '@/lib/api';
+
+const pasienBaru = await createPasien({
+  nama: 'Budi Santoso',           // wajib
+  jenisKelamin: 'LAKI_LAKI',      // wajib: 'LAKI_LAKI' | 'PEREMPUAN'
+  tanggalLahir: '1990-05-15',     // wajib: YYYY-MM-DD
+  noTelepon: '08123456789',       // opsional
+  alamat: 'Jl. Merdeka No.1',     // opsional
+});
+// pasienBaru → { id, noRm, nama, ... }
+```
+
+---
+
+#### `updatePasien(id, data)`
+Perbarui data pasien. Kirim **hanya field yang ingin diubah**.
+
+```ts
+import { updatePasien } from '@/lib/api';
+
+// Hanya update nomor telepon
+const updated = await updatePasien('uuid-pasien', {
+  noTelepon: '08999999999',
+});
+
+// Atau update beberapa field sekaligus
+const updated2 = await updatePasien('uuid-pasien', {
+  nama: 'Budi Santoso Jr.',
+  alamat: 'Jl. Baru No.2',
+});
+```
+
+---
+
+#### `deletePasien(id)`
+Hapus pasien beserta **seluruh** data terkait (rekam medis, antrian, pembayaran).
+
+```ts
+import { deletePasien } from '@/lib/api';
+
+await deletePasien('uuid-pasien');
+```
+
+---
+
+### 👨‍⚕️ Dokter *(Akses: Semua)*
+
+#### `getDokterList()`
+Ambil daftar semua dokter. Gunakan untuk dropdown pilihan dokter saat mendaftarkan antrian.
+
+```ts
+import { getDokterList } from '@/lib/api';
+
+const dokterList = await getDokterList();
+// dokterList → [{ id, namaLengkap, spesialisasi }, ...]
+```
+
+---
+
+#### `getDokter(id)`
+Ambil detail dokter beserta daftar antrian hari ini.
+
+```ts
+import { getDokter } from '@/lib/api';
+
+const dokter = await getDokter('uuid-dokter');
+// dokter → { id, namaLengkap, spesialisasi, jadwal: [...] }
+```
+
+---
+
+### 📋 Antrian *(Akses: ADMIN & DOKTER)*
+
+#### `getAntrian(params?)`
+Ambil daftar antrian. Default: semua antrian **hari ini**.
+
+```ts
+import { getAntrian } from '@/lib/api';
+
+// Antrian hari ini (semua dokter)
+const antrian = await getAntrian();
+
+// Filter berdasarkan dokter tertentu
+const antrianDokter = await getAntrian({ dokterId: 'uuid-dokter' });
+
+// Filter berdasarkan tanggal tertentu
+const antrianTanggal = await getAntrian({ tanggal: '2026-05-05' });
+
+// Kombinasi filter
+const filter = await getAntrian({ tanggal: '2026-05-05', dokterId: 'uuid-dokter' });
+// → ApiAntrian[]  →  [{ id, nomorAntrian, jam, status, pasien: {...}, dokter: {...} }]
+```
+
+---
+
+#### `createAntrian(data)`
+Buat antrian baru. Nomor antrian dihitung otomatis oleh server.
+
+```ts
+import { createAntrian } from '@/lib/api';
+
+const antrian = await createAntrian({
+  pasienId: 'uuid-pasien',   // wajib
+  dokterId: 'uuid-dokter',   // wajib
+  jam: '09:00',              // wajib, format HH:MM
+});
+// antrian → { id, nomorAntrian: 1, jam: '09:00', status: 'MENUNGGU', ... }
+```
+
+---
+
+#### `updateStatusAntrian(id, status)`
+Perbarui status antrian. Dokter hanya bisa ubah antrian miliknya.
+
+```ts
+import { updateStatusAntrian } from '@/lib/api';
+
+// Tandai sedang diperiksa
+await updateStatusAntrian('uuid-antrian', 'DIPERIKSA');
+
+// Tandai selesai
+await updateStatusAntrian('uuid-antrian', 'SELESAI');
+
+// Batalkan antrian
+await updateStatusAntrian('uuid-antrian', 'BATAL');
+// Status: 'MENUNGGU' | 'DIPERIKSA' | 'SELESAI' | 'BATAL'
+```
+
+---
+
+### 📝 Rekam Medis *(Akses: DOKTER)*
+
+#### `createRekamMedis(data)`
+Simpan rekam medis pemeriksaan lengkap dalam **satu request**.
+Jika `jadwalId` diisi, status antrian otomatis berubah menjadi `SELESAI`.
+
+```ts
+import { createRekamMedis } from '@/lib/api';
+
+// Contoh lengkap dengan resep dan rujukan
+const rm = await createRekamMedis({
+  pasienId: 'uuid-pasien',          // wajib
+  jadwalId: 'uuid-antrian',         // opsional — jika diisi, antrian otomatis SELESAI
+  keluhan: 'Demam 3 hari',          // wajib
+  tindakan: 'Infus RL',             // opsional
+  diagnosis: [                       // wajib, minimal 1
+    { deskripsi: 'Demam Dengue' },
+    { deskripsi: 'Dehidrasi Ringan' },
+  ],
+  resep: [                           // opsional
+    { namaObat: 'Paracetamol', dosis: '500mg', aturanPakai: '3x1' },
+    { namaObat: 'Oralit', dosis: '1 sachet', aturanPakai: 'Tiap diare' },
+  ],
+  rujukan: {                         // opsional
+    tujuan: 'RS Hasan Sadikin',
+    keterangan: 'Perlu rawat inap',
+  },
+});
+
+// Contoh minimal (tanpa resep dan rujukan)
+const rmMinimal = await createRekamMedis({
+  pasienId: 'uuid-pasien',
+  keluhan: 'Batuk pilek',
+  diagnosis: [{ deskripsi: 'ISPA' }],
+});
+```
+
+---
+
+#### `getRekamMedisPasien(pasienId)`
+Ambil seluruh riwayat rekam medis seorang pasien, diurutkan **terbaru dulu**.
+
+```ts
+import { getRekamMedisPasien } from '@/lib/api';
+
+const riwayat = await getRekamMedisPasien('uuid-pasien');
+// riwayat → ApiRekamMedis[]
+// Tiap item: { id, tanggal, keluhan, tindakan, dokter, diagnosis, resep, rujukan }
+```
+
+---
+
+### 💰 Pembayaran *(Akses: ADMIN)*
+
+#### `getPembayaran(params?)`
+Ambil daftar pembayaran. Filter opsional berdasarkan pasien atau status.
+
+```ts
+import { getPembayaran } from '@/lib/api';
+
+// Semua pembayaran
+const semua = await getPembayaran();
+
+// Filter pasien tertentu
+const milikPasien = await getPembayaran({ pasienId: 'uuid-pasien' });
+
+// Filter yang belum bayar
+const belumLunas = await getPembayaran({ status: 'BELUM_BAYAR' });
+
+// Kombinasi filter
+const filter = await getPembayaran({ pasienId: 'uuid-pasien', status: 'LUNAS' });
+// → ApiPembayaran[]
+```
+
+---
+
+#### `createPembayaran(data)`
+Buat transaksi pembayaran baru. Status awal otomatis: `BELUM_BAYAR`.
+
+```ts
+import { createPembayaran } from '@/lib/api';
+
+const tagihan = await createPembayaran({
+  pasienId: 'uuid-pasien',         // wajib
+  rekamMedisId: 'uuid-rm',         // opsional, untuk tautkan ke pemeriksaan
+  jumlah: 150000,                  // wajib, angka (Rupiah)
+  metode: 'TUNAI',                 // wajib: 'TUNAI' | 'TRANSFER' | 'BPJS'
+});
+// tagihan → { id, jumlah: 150000, status: 'BELUM_BAYAR', ... }
+```
+
+---
+
+#### `updateStatusPembayaran(id, status)`
+Tandai pembayaran sebagai lunas atau kembalikan ke belum bayar.
+
+```ts
+import { updateStatusPembayaran } from '@/lib/api';
+
+// Tandai lunas
+await updateStatusPembayaran('uuid-pembayaran', 'LUNAS');
+
+// Batalkan ke belum bayar
+await updateStatusPembayaran('uuid-pembayaran', 'BELUM_BAYAR');
+```
+
+---
+
+## 🛡️ Penanganan Error
+
+Semua fungsi di `api.ts` akan **melempar `Error`** jika server mengembalikan `success: false`.
+Gunakan `try/catch` untuk menangani error di komponen:
+
+```ts
+import { createPasien } from '@/lib/api';
+
+try {
+  const pasien = await createPasien({ nama: 'Budi', jenisKelamin: 'LAKI_LAKI', tanggalLahir: '1990-01-01' });
+  console.log('Berhasil:', pasien);
+} catch (err) {
+  // err.message berisi pesan error dari server, misal: "Forbidden", "Data tidak valid"
+  alert('Gagal: ' + (err as Error).message);
+}
+```
+
+---
+
+## 📖 Referensi Endpoint Lengkap (Raw)
+
+> Bagian ini untuk referensi jika ingin memanggil endpoint secara manual tanpa helper.
+
+### 🔐 Autentikasi (`/api/auth`)
+
+#### `POST /api/auth/login`
+```json
+// Request Body
+{ "username": "admin", "password": "admin123" }
+```
+
+#### `GET /api/auth/me`
+Tidak butuh body. Kembalikan data user yang sedang login.
+
+#### `POST /api/auth/logout`
+Tidak butuh body. Hapus cookie token.
+
+---
+
+### 🏥 Pasien (`/api/pasien`) — Akses: ADMIN
+
+| Method | Endpoint | Keterangan |
+|---|---|---|
+| GET | `/api/pasien` | Semua pasien |
+| GET | `/api/pasien?search=nama` | Filter berdasarkan nama |
+| POST | `/api/pasien` | Tambah pasien baru |
+| GET | `/api/pasien/[id]` | Detail + riwayat rekam medis & pembayaran |
+| PUT | `/api/pasien/[id]` | Update data pasien (partial) |
+| DELETE | `/api/pasien/[id]` | Hapus pasien + semua datanya |
+
+---
+
+### 👨‍⚕️ Dokter (`/api/dokter`) — Akses: Semua
+
+| Method | Endpoint | Keterangan |
+|---|---|---|
+| GET | `/api/dokter` | Daftar semua dokter |
+| GET | `/api/dokter/[id]` | Detail dokter + antrian hari ini |
+
+---
+
+### 📋 Antrian (`/api/antrian`) — Akses: ADMIN & DOKTER
+
+| Method | Endpoint | Keterangan |
+|---|---|---|
+| GET | `/api/antrian` | Antrian hari ini |
+| GET | `/api/antrian?dokterId=uuid` | Filter per dokter |
+| GET | `/api/antrian?tanggal=YYYY-MM-DD` | Filter per tanggal |
+| POST | `/api/antrian` | Buat antrian baru (Admin) |
+| PUT | `/api/antrian/[id]` | Update status antrian |
+
+---
+
+### 📝 Rekam Medis (`/api/rekam-medis`) — Akses: DOKTER
+
+| Method | Endpoint | Keterangan |
+|---|---|---|
+| POST | `/api/rekam-medis` | Simpan rekam medis lengkap |
+| GET | `/api/rekam-medis/pasien/[id]` | Riwayat rekam medis pasien |
+
+---
+
+### 💰 Pembayaran (`/api/pembayaran`) — Akses: ADMIN
+
+| Method | Endpoint | Keterangan |
+|---|---|---|
+| GET | `/api/pembayaran` | Semua pembayaran |
+| GET | `/api/pembayaran?pasienId=uuid` | Filter per pasien |
+| GET | `/api/pembayaran?status=BELUM_BAYAR` | Filter per status |
+| POST | `/api/pembayaran` | Buat tagihan baru |
+| PUT | `/api/pembayaran/[id]` | Update status pembayaran |
+
+---
+
+## Akun Default
+
+Jalankan `npx tsx prisma/seed.ts` untuk membuat akun:
+
+| Role | Username | Password |
+|---|---|---|
+| Admin | `admin` | `admin123` |
+| Dokter (dr. Yofli) | `dryofli` | `admin123` |

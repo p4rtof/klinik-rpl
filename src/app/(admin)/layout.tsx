@@ -13,6 +13,11 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
 
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  };
+
   const menuItems = [
     {
       name: "Dashboard",
@@ -101,7 +106,7 @@ export default function AdminLayout({
         {/* Tombol Logout */}
         <div className="p-4 mt-auto">
           <button
-            onClick={() => router.push("/login")}
+            onClick={handleLogout}
             className={`flex items-center border-3 border-red-theme gap-3 py-2.5 px-3 w-full rounded-xl text-red-theme font-bold hover:bg-red-theme hover:text-white transition-all shadow-sm active:scale-95 group ${!isOpen && "justify-center"}`}
           >
             <img

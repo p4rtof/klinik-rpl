@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { pasienSchema } from "@/lib/validations";
+import { pembayaranSchema } from "@/lib/validations";
 
-// GET /api/pasien?search=nama
+// GET /api/pembayaran?pasienId=xxx&status=BELUM_BAYAR
 export async function GET(request: Request) {
   try {
     const role = request.headers.get("x-user-role");
@@ -14,16 +14,23 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search");
+    const pasienId = searchParams.get("pasienId");
+    const status = searchParams.get("status");
 
-    const pasien = await prisma.pasien.findMany({
-      where: search ? { nama: { contains: search } } : undefined,
-      orderBy: { createdAt: "desc" },
+    const pembayaran = await prisma.pembayaran.findMany({
+      where: {
+        ...(pasienId ? { pasienId } : {}),
+        ...(status ? { status } : {}),
+      },
+      include: {
+        pasien: { select: { noRm: true, nama: true } },
+      },
+      orderBy: { tanggal: "desc" },
     });
 
-    return NextResponse.json({ success: true, data: pasien });
+    return NextResponse.json({ success: true, data: pembayaran });
   } catch (error) {
-    console.error("[GET /api/pasien]", error);
+    console.error("[GET /api/pembayaran]", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
       { status: 500 },
@@ -31,9 +38,9 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/pasien
-// Body: { nama, jenisKelamin, tanggalLahir, noTelepon?, alamat? }
-// noRm di-generate otomatis oleh server
+// POST /api/pembayaran
+// Body: { pasienId, rekamMedisId?, jumlah, metode }
+// status default = "BELUM_BAYAR"
 export async function POST(request: Request) {
   try {
     const role = request.headers.get("x-user-role");
@@ -45,7 +52,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const parseResult = pasienSchema.safeParse(body);
+    const parseResult = pembayaranSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
         {
@@ -57,17 +64,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const newPasien = await prisma.pasien.create({ data: parseResult.data });
+    const newPembayaran = await prisma.pembayaran.create({
+      data: parseResult.data,
+      include: { pasien: { select: { noRm: true, nama: true } } },
+    });
+
     return NextResponse.json(
       {
         success: true,
-        data: newPasien,
-        message: "Pasien berhasil ditambahkan",
+        data: newPembayaran,
+        message: "Data pembayaran berhasil dibuat",
       },
       { status: 201 },
     );
   } catch (error) {
-    console.error("[POST /api/pasien]", error);
+    console.error("[POST /api/pembayaran]", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
       { status: 500 },

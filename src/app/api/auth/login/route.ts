@@ -4,11 +4,11 @@ import { signToken } from '@/lib/auth';
 import { loginSchema } from '@/lib/validations';
 import bcrypt from 'bcryptjs';
 
+// POST /api/auth/login
+// Body: { username, password }
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
-    // Validasi input
     const parseResult = loginSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
@@ -18,57 +18,31 @@ export async function POST(request: Request) {
     }
 
     const { username, password } = parseResult.data;
+    const user = await prisma.user.findUnique({ where: { username } });
 
-    // Cari user di database beserta data dokternya jika ada
-    const user = await prisma.user.findUnique({
-      where: { username },
-      include: {
-        dokter: true,
-      }
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Username atau password salah' },
-        { status: 401 }
-      );
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return NextResponse.json({ success: false, error: 'Username atau password salah' }, { status: 401 });
     }
 
-    // Verifikasi password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return NextResponse.json(
-        { success: false, error: 'Username atau password salah' },
-        { status: 401 }
-      );
-    }
-
-    // Buat token JWT
     const token = await signToken({
       id: user.id,
       username: user.username,
-      role: user.role,
+      role: user.role as 'ADMIN' | 'DOKTER',
       namaLengkap: user.namaLengkap,
-      dokterId: user.dokter?.id,
     });
 
-    // Buat response
-    const response = NextResponse.json(
-      { 
-        success: true, 
-        message: 'Login berhasil',
-        data: {
-          id: user.id,
-          username: user.username,
-          role: user.role,
-          namaLengkap: user.namaLengkap,
-          dokterId: user.dokter?.id,
-        }
+    const response = NextResponse.json({
+      success: true,
+      message: 'Login berhasil',
+      data: {
+        id: user.id,
+        username: user.username,
+        role: user.role,          // "ADMIN" atau "DOKTER"
+        namaLengkap: user.namaLengkap,
+        spesialisasi: user.spesialisasi,
       },
-      { status: 200 }
-    );
+    });
 
-    // Set HTTP-Only Cookie
     response.cookies.set({
       name: 'token',
       value: token,
@@ -80,12 +54,8 @@ export async function POST(request: Request) {
     });
 
     return response;
-
   } catch (error) {
     console.error('Login error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Terjadi kesalahan pada server' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Terjadi kesalahan pada server' }, { status: 500 });
   }
 }

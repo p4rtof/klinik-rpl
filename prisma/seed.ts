@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   const hashedPassword = await bcrypt.hash('admin123', 10);
 
+  // Buat user Admin
   const admin = await prisma.user.upsert({
     where: { username: 'admin' },
     update: {},
@@ -13,15 +14,13 @@ async function main() {
       username: 'admin',
       password: hashedPassword,
       role: 'ADMIN',
-      namaLengkap: 'Administrator Sistem',
+      namaLengkap: 'Administrator',
     },
   });
+  console.log('✅ Admin:', admin.username);
 
-  console.log('Seeder berhasil! User Admin:');
-  console.log({ id: admin.id, username: admin.username, role: admin.role });
-
-  // Buat User Dokter
-  const doctorUser = await prisma.user.upsert({
+  // Buat user Dokter (dr. Yofli)
+  const dokter = await prisma.user.upsert({
     where: { username: 'dryofli' },
     update: {},
     create: {
@@ -29,30 +28,16 @@ async function main() {
       password: hashedPassword,
       role: 'DOKTER',
       namaLengkap: 'dr. Yofli',
-    },
-  });
-
-  // Hubungkan User Dokter dengan entitas Dokter
-  const doctorProfile = await prisma.dokter.upsert({
-    where: { userId: doctorUser.id },
-    update: {},
-    create: {
-      userId: doctorUser.id,
-      nama: doctorUser.namaLengkap,
       spesialisasi: 'Umum',
-      jadwalPraktik: 'Senin - Jumat, 08:00 - 16:00',
     },
   });
+  console.log('✅ Dokter:', dokter.username, '—', dokter.namaLengkap);
 
-  console.log('User Dokter berhasil dibuat:');
-  console.log({ id: doctorUser.id, username: doctorUser.username, role: doctorUser.role, spesialisasi: doctorProfile.spesialisasi });
+  console.log('\n📋 Akun default:');
+  console.log('  Admin    → username: admin    | password: admin123');
+  console.log('  Dokter   → username: dryofli  | password: admin123');
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .catch((e) => { console.error(e); process.exit(1); })
+  .finally(async () => { await prisma.$disconnect(); });
