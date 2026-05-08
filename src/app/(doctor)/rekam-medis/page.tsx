@@ -14,7 +14,12 @@ export default function RiwayatPasienPage() {
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      if (!antreanId) return;
+      // PERBAIKAN: Gunakan kurung kurawal agar return hanya jalan jika antreanId kosong
+      if (!antreanId) {
+        setIsLoading(false);
+        return;
+      }
+        
       setIsLoading(true);
       try {
         // 1. Ambil detail antrean untuk mendapatkan data Pasien
@@ -83,11 +88,11 @@ export default function RiwayatPasienPage() {
           <div className="md:col-span-3 grid grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <p className="text-[10px] font-black text-gray-400 uppercase">Nama Pasien</p>
-              <p className="font-bold text-gray-800">{pasien.nama}</p>
+              <p className="font-bold text-gray-800 uppercase">{pasien.nama}</p>
             </div>
             <div>
               <p className="text-[10px] font-black text-gray-400 uppercase">Jenis Kelamin</p>
-              <p className="font-bold text-gray-800">{pasien.jenisKelamin}</p>
+              <p className="font-bold text-gray-800">{pasien.jenisKelamin === "LAKI_LAKI" ? "Laki-laki": "Perempuan"}</p>
             </div>
             <div>
               <p className="text-[10px] font-black text-gray-400 uppercase">Kontak</p>
@@ -127,7 +132,6 @@ export default function RiwayatPasienPage() {
                   <div className="space-y-3">
                     <div>
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Diagnosis</p>
-                      {/* PERBAIKAN DIAGNOSIS: Di-map jika array */}
                       <p className="font-extrabold text-gray-800 text-lg">
                         {Array.isArray(h.diagnosis) && h.diagnosis.length > 0
                           ? h.diagnosis.map((d: any) => d.deskripsi).join(", ")
@@ -149,7 +153,6 @@ export default function RiwayatPasienPage() {
                     <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl">
                       <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-1">Resep Obat</p>
                       <div className="text-sm font-black text-blue-900 leading-relaxed">
-                        {/* PERBAIKAN RESEP: Di-map menjadi list peluru */}
                         {Array.isArray(h.resep) && h.resep.length > 0 ? (
                           <ul className="list-disc ml-4 font-medium">
                             {h.resep.map((r: any) => (
@@ -167,7 +170,6 @@ export default function RiwayatPasienPage() {
                     <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
                       <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tujuan Rujukan</p>
-                        {/* PERBAIKAN RUJUKAN: Tampilkan tujuan rujukan jika ada */}
                         <p className="text-sm font-bold text-gray-700">
                            {Array.isArray(h.rujukan) && h.rujukan.length > 0 ? h.rujukan[0].tujuan : "-"}
                         </p>

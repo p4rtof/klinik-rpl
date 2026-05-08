@@ -18,16 +18,20 @@ export default function AdminLayout({
       name: "Dashboard",
       icon: "/componen-admin/dashboard.svg",
       path: "/dashboard-dokter",
+      // Tambahkan route terkait yang juga dianggap sebagai "Dashboard"
+      activePaths: ["/dashboard-dokter", "/periksa", "/rekam-medis"], 
     },
     {
       name: "Jadwal Saya",
       icon: "/component-doctor/kalender.svg",
       path: "/jadwal-saya",
+      activePaths: ["/jadwal-saya"],
     },
     {
       name: "Profile",
       icon: "/component-doctor/pasien.svg",
       path: "/profile",
+      activePaths: ["/profile"],
     },
   ];
 
@@ -67,16 +71,14 @@ export default function AdminLayout({
         </div>
 
         {/* Navigasi */}
-        {/* Navigasi */}
         <nav className="flex-1 p-3 space-y-1 mt-4">
           {menuItems.map((item, index) => {
-            // Pastikan path dicek dengan benar
-            const isActive = pathname === item.path;
+            // Cek apakah pathname saat ini ada di dalam array activePaths
+            const isActive = item.activePaths.includes(pathname);
             return (
               <Link
                 key={index}
                 href={item.path}
-                // Hapus logika yang mungkin memaksa setIsOpen(true) di sini jika ada
                 className={`flex items-center gap-3 py-3 px-3 rounded-xl transition-all group font-bold
           ${isActive ? "bg-primary text-white" : "bg-white text-primary hover:bg-primary hover:text-white"}
           ${!isOpen ? "justify-center" : ""}`}
@@ -121,8 +123,8 @@ export default function AdminLayout({
         <header className="bg-white h-20 border-b border-gray-100 flex gap-5 items-center px-10 shadow-sm">
           <img
             src="/logo.svg"
-            alt="logout"
-            className="w-10 h-10 object-contain transition-all group-hover:brightness-0 group-hover:invert flex-shrink-0"
+            alt="logo"
+            className="w-10 h-10 object-contain transition-all flex-shrink-0"
           />
           <h2 className="text-3xl font-semibold text-primary">
             Klinik dr.Yofli

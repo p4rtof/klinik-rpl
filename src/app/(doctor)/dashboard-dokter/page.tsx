@@ -103,7 +103,7 @@ export default function DashboardDokterPage() {
               </div>
               <div className="flex gap-2">
                 <Link
-                  href={`/rekam-medis?search=${pasienSaatIni.pasien?.nama}`}
+                  href={`/rekam-medis?id=${pasienSaatIni.id}`}
                   className="bg-blue-100 text-blue-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-200 transition-all"
                 >
                   Lihat Riwayat
@@ -168,7 +168,7 @@ export default function DashboardDokterPage() {
                 <td className="px-6 py-5">
                   <div className="flex justify-center gap-2">
                     <Link
-                      href={`/rekam-medis?search=${item.pasien?.nama}`}
+                      href={`/rekam-medis?id=${item.id}`}
                       className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all"
                       title="Riwayat"
                     >
