@@ -6,15 +6,16 @@ export default function PembayaranPage() {
   const [transaksiList, setTransaksiList] = useState<any[]>([]);
   const [statsPembayaran, setStatsPembayaran] = useState({ total: 0, lunas: 0, pending: 0 });
   const [searchQuery, setSearchQuery] = useState("");
+  const [isTableLoading, setIsTableLoading] = useState(true); // State Loading
 
   const fetchPembayaran = async () => {
+    setIsTableLoading(true); // Mulai Loading
     try {
       const res = await fetch("/api/pembayaran");
       const json = await res.json();
       if (json.success) {
         setTransaksiList(json.data);
         
-        // Hitung total uang dan jumlah transaksi otomatis
         const totalTagihan = json.data.reduce((acc: number, curr: any) => acc + curr.jumlah, 0);
         const lunas = json.data.filter((t: any) => t.status === "LUNAS").length;
         const pending = json.data.filter((t: any) => t.status === "BELUM_BAYAR").length;
@@ -23,6 +24,8 @@ export default function PembayaranPage() {
       }
     } catch (err) {
       console.error("Gagal memuat pembayaran", err);
+    } finally {
+      setIsTableLoading(false); // Selesai Loading
     }
   };
 
@@ -38,13 +41,12 @@ export default function PembayaranPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "LUNAS" })
       });
-      if (res.ok) fetchPembayaran(); // Refresh tabel biar langsung update!
+      if (res.ok) fetchPembayaran();
     } catch (err) {
       alert("Terjadi kesalahan.");
     }
   };
 
-  // Logika bar pencarian
   const filteredList = transaksiList.filter((item) => 
     item.pasien?.nama?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -62,25 +64,40 @@ export default function PembayaranPage() {
 
       {/* Ringkasan Status Pembayaran */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Card 1 */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5">
           <img src="/componen-admin/kantong-uang.svg" className="w-15 h-15 opacity-180" alt="" />
           <div>
             <p className="text-gray-500 font-medium">Total Tagihan</p>
-            <p className="text-2xl font-bold text-primary">Rp {statsPembayaran.total.toLocaleString("id-ID")}</p>
+            {isTableLoading ? (
+              <div className="h-8 bg-gray-100 animate-pulse w-32 rounded-lg mt-1"></div>
+            ) : (
+              <p className="text-2xl font-bold text-primary">Rp {statsPembayaran.total.toLocaleString("id-ID")}</p>
+            )}
           </div>
         </div>
+        {/* Card 2 */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5">
           <img src="/componen-admin/lunas.svg" className="w-15 h-15 opacity-180" alt="" />
           <div>
             <p className="text-gray-500 font-medium">Sudah Lunas</p>
-            <p className="text-2xl font-bold text-green-600">{statsPembayaran.lunas} Transaksi</p>
+            {isTableLoading ? (
+              <div className="h-8 bg-gray-100 animate-pulse w-24 rounded-lg mt-1"></div>
+            ) : (
+              <p className="text-2xl font-bold text-green-600">{statsPembayaran.lunas} Transaksi</p>
+            )}
           </div>
         </div>
+        {/* Card 3 */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5">
           <img src="/componen-admin/waiting.svg" className="w-15 h-15 opacity-180" alt="" />
           <div>
             <p className="text-gray-500 font-medium">Menunggu Pembayaran</p>
-            <p className="text-2xl font-bold text-orange-500">{statsPembayaran.pending} Transaksi</p>
+            {isTableLoading ? (
+              <div className="h-8 bg-gray-100 animate-pulse w-24 rounded-lg mt-1"></div>
+            ) : (
+              <p className="text-2xl font-bold text-orange-500">{statsPembayaran.pending} Transaksi</p>
+            )}
           </div>
         </div>
       </div>
@@ -104,24 +121,36 @@ export default function PembayaranPage() {
         <table className="w-full text-left border-collapse">
           <thead className="bg-primary text-white">
             <tr>
-              <th className="px-4 py-3 text-sm font-bold border-r border-2 border-white/50 text-center uppercase">ID Transaksi</th>
-              <th className="px-4 py-3 text-sm font-bold border-r border-2 border-white/50 text-center uppercase">Nomor RM</th>
-              <th className="px-4 py-3 text-sm font-bold border-r border-2 border-white/50 text-center uppercase">Nama Pasien</th>
-              <th className="px-4 py-3 text-sm font-bold border-r border-2 border-white/50 text-center uppercase">Total Biaya</th>
-              <th className="px-4 py-3 text-sm font-bold border-r border-2 border-white/50 text-center uppercase">Status</th>
-              <th className="px-4 py-3 text-sm font-bold text-center uppercase">Aksi</th>
+              <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">ID Transaksi</th>
+              <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Nomor RM</th>
+              <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Nama Pasien</th>
+              <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Total Biaya</th>
+              <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Status</th>
+              <th className="px-4 py-3 text-lg font-bold text-center uppercase">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredList.length > 0 ? (
+            {isTableLoading ? (
+              // --- SKELETON LOADING ---
+              [...Array(5)].map((_, i) => (
+                <tr key={i} className="animate-pulse">
+                  <td className="p-4"><div className="h-6 bg-gray-100 rounded w-20 mx-auto"></div></td>
+                  <td className="p-4"><div className="h-6 bg-gray-100 rounded w-16 mx-auto"></div></td>
+                  <td className="p-4"><div className="h-6 bg-gray-100 rounded w-40 mx-auto"></div></td>
+                  <td className="p-4"><div className="h-6 bg-gray-100 rounded w-24 mx-auto"></div></td>
+                  <td className="p-4"><div className="h-8 bg-gray-100 rounded-full w-24 mx-auto"></div></td>
+                  <td className="p-4"><div className="h-8 bg-gray-100 rounded-lg w-28 mx-auto"></div></td>
+                </tr>
+              ))
+            ) : filteredList.length > 0 ? (
               filteredList.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 transition-colors text-center">
-                  <td className="px-4 py-3 text-xs text-gray-500">{item.id.split("-")[0].toUpperCase()}</td>
+                <tr key={item.id} className="hover:bg-blue-50 transition-colors text-center">
+                  <td className="px-4 py-3 font-bold text-primary">{item.id.split("-")[0].toUpperCase()}</td>
                   <td className="px-4 py-3 font-bold">{item.pasien?.noRm?.split("-")[0]}</td>
-                  <td className="px-4 py-3 font-semibold text-left">{item.pasien?.nama}</td>
-                  <td className="px-4 py-3 font-bold text-primary">Rp {item.jumlah.toLocaleString("id-ID")}</td>
+                  <td className="px-4 py-3 font-semibold text-left capitalize">{item.pasien?.nama}</td>
+                  <td className="px-4 py-3 font-bold">Rp {item.jumlah.toLocaleString("id-ID")}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${item.status === "LUNAS" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
+                    <span className={`px-3 py-1 rounded-full text-sm font-bold ${item.status === "LUNAS" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
                       {item.status === "LUNAS" ? "LUNAS" : "BELUM BAYAR"}
                     </span>
                   </td>
@@ -129,7 +158,7 @@ export default function PembayaranPage() {
                     {item.status === "BELUM_BAYAR" ? (
                       <button 
                         onClick={() => handleLunas(item.id)}
-                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
+                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg text-md font-bold transition-all shadow-sm active:scale-95"
                       >
                         ✔ Terima Dana
                       </button>

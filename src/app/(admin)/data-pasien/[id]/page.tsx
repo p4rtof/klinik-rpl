@@ -9,18 +9,29 @@ export default function DetailPasienPage() {
   const router = useRouter();
   
   const [pasien, setPasien] = useState<any>(null);
+  const [riwayat, setRiwayat] = useState<any[]>([]); // State untuk menyimpan riwayat
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDetailPasien = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch(`/api/pasien/${id}`, {
+        // 1. Ambil Detail Pasien
+        const resPasien = await fetch(`/api/pasien/${id}`, {
           headers: { "x-user-role": "ADMIN" },
         });
-        const json = await res.json();
+        const jsonPasien = await resPasien.json();
         
-        if (json.success) {
-          setPasien(json.data);
+        if (jsonPasien.success) {
+          setPasien(jsonPasien.data);
+
+          // 2. Ambil Riwayat Rekam Medis Pasien
+          const resRiwayat = await fetch(`/api/rekam-medis/pasien/${id}`, {
+            headers: { "x-user-role": "ADMIN" },
+          });
+          const jsonRiwayat = await resRiwayat.json();
+          if (jsonRiwayat.success) {
+            setRiwayat(jsonRiwayat.data);
+          }
         } else {
           alert("Gagal memuat detail pasien");
         }
@@ -31,15 +42,15 @@ export default function DetailPasienPage() {
       }
     };
 
-    if (id) fetchDetailPasien();
+    if (id) fetchData();
   }, [id]);
 
   if (isLoading) {
-    return <div className="text-center mt-20 text-xl font-bold text-gray-500">Memuat data...</div>;
+    return <div className="text-center mt-20 text-xl font-bold text-gray-500 font-sans">Memuat data...</div>;
   }
 
   if (!pasien) {
-    return <div className="text-center mt-20 text-xl font-bold text-red-500">Pasien tidak ditemukan.</div>;
+    return <div className="text-center mt-20 text-xl font-bold text-red-500 font-sans">Pasien tidak ditemukan.</div>;
   }
 
   return (
@@ -71,8 +82,8 @@ export default function DetailPasienPage() {
         <div className="flex-1 w-full">
           <div className="flex justify-between items-start border-b border-gray-100 pb-4 mb-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">{pasien.nama}</h2>
-              <p className="text-primary font-bold text-lg mt-1">{pasien.id || "Belum ada No. RM"}</p>
+              <h2 className="text-2xl font-bold text-gray-800 capitalize">{pasien.nama}</h2>
+              <p className="text-primary font-bold text-lg mt-1">{pasien.noRm || "Belum ada No. RM"}</p>
             </div>
             <span className="px-4 py-2 bg-green-100 text-green-700 font-bold rounded-xl text-sm">
               Pasien Aktif
@@ -102,12 +113,44 @@ export default function DetailPasienPage() {
         </div>
       </div>
 
-      {/* TEMPAT UNTUK RIWAYAT KUNJUNGAN/REKAM MEDIS NANTI */}
+      {/* RIWAYAT REKAM MEDIS */}
       <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
         <h3 className="text-xl font-bold mb-4">Riwayat Rekam Medis</h3>
-        <div className="p-8 border-2 border-dashed border-gray-200 rounded-2xl text-center">
-          <p className="text-gray-400 italic">Data riwayat medis belum tersedia / belum diintegrasikan.</p>
-        </div>
+        
+        {riwayat.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-gray-400 text-sm border-b border-gray-50 uppercase font-black">
+                  <th className="pb-4">Tanggal</th>
+                  <th className="pb-4">Diagnosis</th>
+                  <th className="pb-4 text-center">Tindakan</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {riwayat.map((item, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50/50">
+                    <td className="py-4 font-medium text-gray-600">
+                      {new Date(item.createdAt).toLocaleDateString("id-ID")}
+                    </td>
+                    <td className="py-4">
+                      <p className="font-bold text-red-500 uppercase text-xs">
+                        {item.diagnosis?.[0]?.deskripsi || "Diagnosis Umum"}
+                      </p>
+                    </td>
+                    <td className="py-4 text-center font-bold text-primary">
+                      {item.tindakan || "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-8 border-2 border-dashed border-gray-200 rounded-2xl text-center">
+            <p className="text-gray-400 italic">Data riwayat medis belum tersedia untuk pasien ini.</p>
+          </div>
+        )}
       </div>
     </div>
   );
