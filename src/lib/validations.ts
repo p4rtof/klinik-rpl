@@ -54,6 +54,7 @@ export const rekamMedisSchema = z.object({
   diagnosis: z.array(diagnosisItemSchema).min(1, 'Minimal 1 diagnosis wajib diisi'),
   resep: z.array(resepItemSchema).default([]),
   rujukan: rujukanItemSchema.optional(),
+  biayaTindakan: z.number().optional().default(0), // ✅ tambah ini
 });
 
 // === PEMBAYARAN ===

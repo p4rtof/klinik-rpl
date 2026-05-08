@@ -83,6 +83,7 @@ export default function PeriksaPage() {
         jadwalId: antrean.id,
         keluhan: formData.keluhan || "Pemeriksaan rutin",
         tindakan: formData.tindakan, // Mengirim nama tindakan yang dipilih
+        biayaTindakan: formData.biayaTindakan, 
         diagnosis: [{ deskripsi: formData.diagnosis }], // Sesuai schema diagnosisItemSchema
         resep: formData.resep
           ? [
@@ -112,7 +113,31 @@ export default function PeriksaPage() {
       });
 
       if (res.ok) {
-        // alert("Pemeriksaan Selesai! Data dikirim ke Admin untuk proses pembayaran.");
+        // 1. Ambil data JSON hasil dari pembuatan Rekam Medis
+        const jsonRM = await res.json(); 
+        
+        // 2. Buat Tagihan Pembayaran Otomatis ke Backend (Admin)
+        if (jsonRM.success && jsonRM.data?.id) {
+          try {
+            await fetch("/api/pembayaran", {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "x-user-role": "DOKTER" // Tambahkan ini biar nggak dicegat Middleware
+              },
+              body: JSON.stringify({
+                pasienId: antrean.pasienId,
+                rekamMedisId: jsonRM.data.id, 
+                jumlah: formData.biayaTindakan, // Ambil dari harga dropdown yang dipilih
+                metode: "TUNAI" // Default tunai, admin bisa ubah nanti
+              })
+            });
+          } catch (err) {
+            console.error("Gagal membuat tagihan pembayaran", err);
+          }
+        }
+
+        // 3. Setelah semua beres, baru kembali ke dashboard
         router.push("/dashboard-dokter");
       } else {
         alert("Gagal menyimpan pemeriksaan.");
