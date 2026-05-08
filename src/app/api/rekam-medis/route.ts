@@ -1,65 +1,94 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { rekamMedisSchema } from '@/lib/validations';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { rekamMedisSchema } from "@/lib/validations";
 
+// POST /api/rekam-medis
+// Body: { pasienId, jadwalId?, keluhan, tindakan?, diagnosis: [{deskripsi}], resep: [{namaObat, dosis, aturanPakai}], rujukan?: {tujuan, keterangan?} }
+// Jika jadwalId diisi, status jadwal otomatis menjadi SELESAI
 export async function POST(request: Request) {
   try {
-    const role = request.headers.get('x-user-role');
-    const userDokterId = request.headers.get('x-dokter-id');
+    const role = request.headers.get("x-user-role");
+    const userId = request.headers.get("x-user-id");
 
-    if (role !== 'DOKTER') {
-       return NextResponse.json({ success: false, error: 'Forbidden: Hanya Dokter yang dapat menambah rekam medis' }, { status: 403 });
+    if (role !== "DOKTER") {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 },
+      );
     }
 
     const body = await request.json();
-    
     const parseResult = rekamMedisSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
-        { success: false, error: 'Data tidak valid', details: parseResult.error.errors },
-        { status: 400 }
+        {
+          success: false,
+          error: "Data tidak valid",
+          details: parseResult.error.errors,
+        },
+        { status: 400 },
       );
     }
 
     const data = parseResult.data;
 
-    // Pastikan antrian valid dan milik dokter ini
-    const antrian = await prisma.antrian.findUnique({ where: { id: data.antrianId } });
-    if (!antrian) {
-      return NextResponse.json({ success: false, error: 'Antrian tidak ditemukan' }, { status: 404 });
-    }
-    
-    if (antrian.dokterId !== userDokterId) {
-      return NextResponse.json({ success: false, error: 'Forbidden: Bukan pasien Anda' }, { status: 403 });
+    // Jika jadwalId diberikan, validasi bahwa jadwal tersebut milik dokter ini
+    if (data.jadwalId) {
+      const jadwal = await prisma.jadwal.findUnique({
+        where: { id: data.jadwalId },
+      });
+      if (!jadwal) {
+        return NextResponse.json(
+          { success: false, error: "Jadwal tidak ditemukan" },
+          { status: 404 },
+        );
+      }
+      if (jadwal.dokterId !== userId) {
+        return NextResponse.json(
+          { success: false, error: "Forbidden" },
+          { status: 403 },
+        );
+      }
     }
 
-    // Gunakan Prisma Transaction untuk atomicity
+    // Simpan semua data secara atomik dalam satu transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Buat Rekam Medis
-      const newRM = await tx.rekamMedis.create({
+      // 1. Buat rekam medis
+      const rm = await tx.rekamMedis.create({
         data: {
           pasienId: data.pasienId,
-          dokterId: userDokterId,
-          tanggalPeriksa: new Date(),
+          dokterId: userId!,
+          jadwalId: data.jadwalId,
           keluhan: data.keluhan,
-          diagnosa: data.diagnosa,
           tindakan: data.tindakan,
-          resepObat: data.resepObat,
-          catatan: data.catatan,
-        }
+          // Buat diagnosis, resep, rujukan sekaligus via nested create
+          diagnosis: { create: data.diagnosis },
+          resep: { create: data.resep },
+          ...(data.rujukan ? { rujukan: { create: [data.rujukan] } } : {}),
+        },
+        include: { diagnosis: true, resep: true, rujukan: true },
       });
 
-      // 2. Update status antrian menjadi SELESAI
-      await tx.antrian.update({
-        where: { id: data.antrianId },
-        data: { status: 'SELESAI' }
-      });
+      // 2. Jika jadwalId ada, tandai jadwal sebagai SELESAI
+      if (data.jadwalId) {
+        await tx.jadwal.update({
+          where: { id: data.jadwalId },
+          data: { status: "SELESAI" },
+        });
+      }
 
-      return newRM;
+      return rm;
     });
 
-    return NextResponse.json({ success: true, data: result, message: 'Rekam medis berhasil disimpan' }, { status: 201 });
+    return NextResponse.json(
+      { success: true, data: result, message: "Rekam medis berhasil disimpan" },
+      { status: 201 },
+    );
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+    console.error("[POST /api/rekam-medis]", error);
+    return NextResponse.json(
+      { success: false, error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

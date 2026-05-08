@@ -1,24 +1,40 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
+// GET /api/rekam-medis/pasien/[id]
+// Riwayat lengkap rekam medis seorang pasien, urut terbaru dulu
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const role = request.headers.get("x-user-role");
+    if (role !== "DOKTER") {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 },
+      );
+    }
+
     const { id } = await params;
-    
-    // Bisa diakses Admin atau Dokter
+
     const rekamMedis = await prisma.rekamMedis.findMany({
       where: { pasienId: id },
       include: {
-        dokter: { select: { nama: true, spesialisasi: true } }
+        dokter: { select: { namaLengkap: true, spesialisasi: true } },
+        diagnosis: true,
+        resep: true,
+        rujukan: true,
       },
-      orderBy: { tanggalPeriksa: 'desc' }
+      orderBy: { tanggal: "desc" },
     });
 
     return NextResponse.json({ success: true, data: rekamMedis });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+    console.error("[GET /api/rekam-medis/pasien/[id]]", error);
+    return NextResponse.json(
+      { success: false, error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
