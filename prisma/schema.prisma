@@ -30,8 +30,8 @@ model User {
 // ============================================================
 
 model Pasien {
-  id           String   @id @default(uuid())
-  noRm         String   @unique @default(uuid()) // Nomor Rekam Medis
+  id           String   @id // Format: P0001, P0002, ... (generated di backend)
+  noRm         String   @unique // Format: R0001, R0002, ... (generated di backend)
   nama         String
   jenisKelamin String   // "LAKI_LAKI" | "PEREMPUAN"
   tanggalLahir String   // format YYYY-MM-DD
