@@ -1,21 +1,93 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+
+type AntreanItem = {
+  nomorRM?: string;
+  pasien?: {
+    nama?: string;
+    jenisKelamin?: "LAKI_LAKI" | "PEREMPUAN" | string;
+    usia?: number;
+  };
+  keluhan?: string;
+};
+
+function formatTanggalID(date: Date) {
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+const DUMMY: AntreanItem[] = [
+  {
+    nomorRM: "R9113",
+    pasien: { nama: "Fikky Hartanto", jenisKelamin: "LAKI_LAKI", usia: 24 },
+    keluhan: "Rheumatoid Arthritis",
+  },
+  {
+    nomorRM: "R1026",
+    pasien: { nama: "Kusuma Dewi", jenisKelamin: "PEREMPUAN", usia: 6 },
+    keluhan: "Migraine",
+  },
+  {
+    nomorRM: "R5074",
+    pasien: { nama: "Sulistyo Budi", jenisKelamin: "LAKI_LAKI", usia: 7 },
+    keluhan: "Gastroesophageal Reflux Disease",
+  },
+  {
+    nomorRM: "R2046",
+    pasien: { nama: "Dwiyana Abitya", jenisKelamin: "LAKI_LAKI", usia: 11 },
+    keluhan: "Asthma",
+  },
+  {
+    nomorRM: "R5072",
+    pasien: { nama: "Muhammad Satrio Nugroho", jenisKelamin: "LAKI_LAKI", usia: 12 },
+    keluhan: "Osteoarthritis",
+  },
+];
+
+function genderLabel(v?: string) {
+  if (v === "LAKI_LAKI") return "Laki-laki";
+  if (v === "PEREMPUAN") return "Perempuan";
+  return v ?? "-";
+}
 
 export default function DashboardDokterPage() {
-  const [dataAntrean, setDataAntrean] = useState([]);
+  const today = useMemo(() => new Date(), []);
+  const [items, setItems] = useState<AntreanItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fungsi ambil data antrean khusus dokter
+  const [sortBy, setSortBy] = useState<"rm" | "nama">("rm");
+  const [q, setQ] = useState("");
+
+  // Ringkasan (sementara dummy)
+  const pasienBelum = 8;
+  const pasienSudah = 16;
+
+  // Pasien aktif (sementara dummy)
+  const pasienAktif = {
+    nama: "Troye Sivan",
+    keluhan: "Rheumatoid Arthritis",
+  };
+
   const fetchAntreanDokter = async () => {
     try {
-      const res = await fetch("/api/antrian"); // Sesuaikan endpoint API Adit
+      // TODO: ganti endpoint sesuai backend
+      const res = await fetch("/api/antrian", { cache: "no-store" });
       const json = await res.json();
-      if (json.success) {
-        setDataAntrean(json.data);
+
+      // asumsi response: { success: true, data: [...] }
+      if (json?.success && Array.isArray(json?.data)) {
+        setItems(json.data);
+      } else {
+        // fallback dummy
+        setItems(DUMMY);
       }
-    } catch (err) {
-      console.error("Gagal mengambil data antrean");
+    } catch {
+      setItems(DUMMY);
     } finally {
       setIsLoading(false);
     }
@@ -25,130 +97,263 @@ export default function DashboardDokterPage() {
     fetchAntreanDokter();
   }, []);
 
+  const filtered = useMemo(() => {
+    const normalized = q.trim().toLowerCase();
+
+    let arr = [...items];
+
+    if (normalized) {
+      arr = arr.filter((it) => {
+        const nama = it.pasien?.nama?.toLowerCase() ?? "";
+        const rm = it.nomorRM?.toLowerCase() ?? "";
+        const kel = (it.keluhan ?? "").toLowerCase();
+        return nama.includes(normalized) || rm.includes(normalized) || kel.includes(normalized);
+      });
+    }
+
+    arr.sort((a, b) => {
+      if (sortBy === "nama") {
+        return (a.pasien?.nama ?? "").localeCompare(b.pasien?.nama ?? "");
+      }
+      return (a.nomorRM ?? "").localeCompare(b.nomorRM ?? "");
+    });
+
+    return arr;
+  }, [items, q, sortBy]);
+
   return (
     <div className="space-y-6 text-black">
-      <h1 className="text-3xl font-bold">Selamat Datang, dr. Yofli</h1>
+      {/* Header */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl sm:text-3xl font-extrabold">
+          Selamat Datang, <span className="font-extrabold">dr. Yofli</span>
+        </h1>
+      </div>
 
-      {/* Top Cards: Ringkasan & Pasien Aktif */}
+      {/* Top cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Card Ringkasan */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="font-bold text-xl">Ringkasan Pasien Hari Ini</h3>
-              <p className="text-primary font-semibold">14/10/2026</p>
-              <p className="text-xs text-gray-400">Data berdasarkan pasien anda hari ini</p>
+        {/* Ringkasan */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-gray-100">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-extrabold">Ringkasan Pasien Hari Ini</h2>
+                <p className="text-xs text-gray-500">Data berdasarkan pasien anda hari ini</p>
+              </div>
+              <div className="text-sm font-bold text-blue-600">{formatTanggalID(today)}</div>
             </div>
           </div>
-          <div className="flex gap-10 mt-6">
-            <div className="flex items-center gap-4">
-              <div className="text-blue-500 bg-blue-50 p-3 rounded-xl">
-                 <img src="/componen-admin/pasien.svg" className="w-8 h-8" alt="icon" />
+
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                <img src="/componen-admin/pasien.svg" className="w-6 h-6" alt="pasien" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Pasien Belum Diperiksa</p>
-                <p className="text-3xl font-bold text-primary">8</p>
+                <p className="text-xs text-gray-600">Pasien Belum Diperiksa</p>
+                <div className="flex items-end gap-2">
+                  <p className="text-2xl font-extrabold text-blue-600">{pasienBelum}</p>
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-blue-500 bg-blue-50 p-3 rounded-xl">
-                 <img src="/componen-admin/pasien.svg" className="w-8 h-8" alt="icon" />
+
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                <img src="/componen-admin/pasien.svg" className="w-6 h-6" alt="pasien" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Pasien Sudah Diperiksa</p>
-                <p className="text-3xl font-bold text-primary">16</p>
+                <h3 className="text-xs text-gray-600">Pasien Sudah Diperiksa</h3>
+                <div className="flex items-end gap-2">
+                  <p className="text-2xl font-extrabold text-blue-600">{pasienSudah}</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Card Pasien Sedang Ditangani */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="font-bold text-xl text-primary mb-4">Pasien yang Sedang Anda Tangani:</h3>
-          <div className="flex justify-between items-center">
-            <div className="space-y-3">
+        {/* Pasien yang sedang ditangani */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-gray-100">
+            <h3 className="font-extrabold text-blue-700">Pasien yang Sedang Anda Tangani:</h3>
+          </div>
+
+          <div className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <img src="/componen-admin/pasien.svg" className="w-6 h-6" alt="icon" />
-                <p className="text-2xl font-extrabold">Troye Sivan</p>
+                <p className="text-xl sm:text-2xl font-extrabold">{pasienAktif.nama}</p>
               </div>
               <div className="flex items-center gap-3">
                 <img src="/componen-admin/waiting.svg" className="w-6 h-6" alt="icon" />
-                <p className="text-gray-600 font-medium text-lg">Keluhan: Rheumatoid Arthritis</p>
+                <p className="text-sm sm:text-base text-gray-700 font-semibold">
+                  Keluhan: <span className="font-extrabold">{pasienAktif.keluhan}</span>
+                </p>
               </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <button className="bg-orange-400 hover:bg-orange-500 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all">
+
+            <div className="flex sm:flex-col gap-2 sm:items-end">
+              <Link href="/rekam-medis"
+                 className="bg-orange-400 hover:bg-orange-500 text-white px-4 py-2 rounded-md font-bold text-sm shadow-sm transition text-center">
                 Lihat Riwayat
-              </button>
-              <button className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all">
+                </Link>
+              <Link
+                href="/periksa"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-bold text-sm shadow-sm transition text-center"
+              >
                 Periksa
-              </button>
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabel Pasien Mengantri */}
-      <div className="mt-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
-          <h2 className="text-2xl font-bold">Pasien Anda yang sedang mengantri</h2>
-          <div className="flex gap-2 w-full md:w-auto">
-            <select className="border border-gray-200 p-2 rounded-lg text-sm bg-white outline-none">
-              <option>Urutkan Berdasarkan</option>
-            </select>
-            <div className="relative flex-1 md:w-64">
-              <input 
-                type="text" 
-                placeholder="Cari Pasien ..." 
-                className="w-full border border-gray-200 p-2 pl-8 rounded-lg text-sm outline-none"
-              />
-              <img src="/componen-admin/cari.svg" className="w-4 h-4 absolute left-2 top-2.5 opacity-40" alt="search" />
-            </div>
+      {/* Title + Tools */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <h2 className="text-xl sm:text-2xl font-extrabold">Pasien Anda yang sedang mengantri</h2>
+
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as "rm" | "nama")}
+            className="w-full sm:w-52 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm outline-none"
+          >
+            <option value="rm">Urutkan: Nomor RM</option>
+            <option value="nama">Urutkan: Nama</option>
+          </select>
+
+          <div className="relative w-full sm:w-72">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Cari Pasien ..."
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 pl-9 text-sm shadow-sm outline-none"
+            />
+            <img
+              src="/componen-admin/cari.svg"
+              className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 opacity-50"
+              alt="search"
+            />
           </div>
         </div>
+      </div>
 
-        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-primary text-white text-center">
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <table className="w-full text-left border-collapse">
+          <thead className="bg-blue-600 text-white text-center font-bold">
+            <tr>
+              <th className="px-4 py-3 border-r border-white/20">Nomor RM</th>
+              <th className="px-4 py-3 border-r border-white/20">Nama Pasien</th>
+              <th className="px-4 py-3 border-r border-white/20">Jenis Kelamin</th>
+              <th className="px-4 py-3 border-r border-white/20">Usia</th>
+              <th className="px-4 py-3 border-r border-white/20">Keluhan</th>
+              <th className="px-4 py-3">Aksi</th>
+            </tr>
+          </thead>
+
+          <tbody className="text-center font-semibold">
+            {isLoading ? (
               <tr>
-                <th className="px-4 py-3 border-r border-white/20">Nomor RM</th>
-                <th className="px-4 py-3 border-r border-white/20">Nama Pasien</th>
-                <th className="px-4 py-3 border-r border-white/20">Jenis Kelamin</th>
-                <th className="px-4 py-3 border-r border-white/20">Usia</th>
-                <th className="px-4 py-3 border-r border-white/20 text-center">Keluhan</th>
-                <th className="px-4 py-3">Aksi</th>
+                <td colSpan={6} className="py-10 text-gray-600">
+                  Memuat data...
+                </td>
               </tr>
-            </thead>
-            <tbody className="text-center font-bold">
-              {isLoading ? (
-                <tr><td colSpan={6} className="py-10">Memuat data...</td></tr>
-              ) : (
-                dataAntrean.map((item: any, i: number) => (
-                  <tr key={i} className="border-b hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4">R{9113 + i}</td>
-                    <td className="px-4 py-4 text-left">{item.pasien?.nama || "Nama Pasien"}</td>
-                    <td className="px-4 py-4">{item.pasien?.jenisKelamin === 'LAKI_LAKI' ? 'Laki-laki' : 'Perempuan'}</td>
-                    <td className="px-4 py-4">24</td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-600 text-left">Rheumatoid Arthritis</td>
-                    <td className="px-4 py-4 flex justify-center gap-2">
-                      <button className="p-1 hover:bg-green-50 rounded"><img src="/componen-admin/lunas.svg" className="w-5 h-5 invert-0 sepia-0 saturate-100 hue-rotate-0" style={{filter: 'invert(48%) sepia(79%) saturate(2476%) hue-rotate(86deg) brightness(118%) contrast(119%)'}} alt="edit" /></button>
-                      <button className="p-1 hover:bg-red-50 rounded"><img src="/componen-admin/waiting.svg" className="w-5 h-5" style={{filter: 'invert(16%) sepia(89%) saturate(6054%) hue-rotate(358deg) brightness(97%) contrast(113%)'}} alt="delete" /></button>
-                      <button className="p-1 hover:bg-blue-50 rounded"><img src="/componen-admin/cari.svg" className="w-5 h-5" style={{filter: 'invert(37%) sepia(93%) saturate(1421%) hue-rotate(187deg) brightness(91%) contrast(101%)'}} alt="view" /></button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          
-          {/* Pagination */}
-          <div className="flex justify-center items-center gap-2 p-4 bg-white border-t border-gray-100">
-            <button className="text-primary font-bold">{"<"}</button>
-            <button className="bg-primary text-white w-8 h-8 rounded-md flex items-center justify-center">1</button>
-            <button className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-gray-100">2</button>
-            <button className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-gray-100">3</button>
-            <button className="text-primary font-bold">{">"}</button>
-          </div>
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-10 text-gray-600">
+                  Data tidak ditemukan.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((item, i) => (
+                <tr key={i} className="border-b hover:bg-gray-50">
+                  <td className="px-4 py-4 font-extrabold">{item.nomorRM ?? `R${9113 + i}`}</td>
+                  <td className="px-4 py-4 text-left font-extrabold">
+                    {item.pasien?.nama ?? "Nama Pasien"}
+                  </td>
+                  <td className="px-4 py-4">{genderLabel(item.pasien?.jenisKelamin)}</td>
+                  <td className="px-4 py-4">{item.pasien?.usia ?? "-"}</td>
+                  <td className="px-4 py-4 text-left text-sm text-gray-700">
+                    {item.keluhan ?? "Keluhan"}
+                  </td>
+
+                  <td className="px-4 py-4">
+                    <div className="flex items-center justify-center gap-2">
+                      {/* Edit (hijau) */}
+                      <button
+                        type="button"
+                        className="p-1 rounded hover:bg-green-50"
+                        title="Edit"
+                        onClick={() => console.log("edit", item)}
+                      >
+                        <img
+                          src="/component-doctor/edit.svg"
+                          className="w-5 h-5"
+                          style={{
+                            filter:
+                              "invert(37%) sepia(86%) saturate(1129%) hue-rotate(87deg) brightness(96%) contrast(96%)",
+                          }}
+                          alt="edit"
+                        />
+                      </button>
+
+                      {/* Delete (merah) */}
+                      <button
+                        type="button"
+                        className="p-1 rounded hover:bg-red-50"
+                        title="Hapus"
+                        onClick={() => console.log("delete", item)}
+                      >
+                        <img
+                          src="/component-doctor/delete.svg"
+                          className="w-5 h-5"
+                          style={{
+                            filter:
+                              "invert(16%) sepia(89%) saturate(6054%) hue-rotate(358deg) brightness(97%) contrast(113%)",
+                          }}
+                          alt="delete"
+                        />
+                      </button>
+
+                      {/* View (biru) */}
+                      <button
+                        type="button"
+                        className="p-1 rounded hover:bg-blue-50"
+                        title="Lihat"
+                        onClick={() => console.log("view", item)}
+                      >
+                        <img
+                          src="/component-doctor/mata.svg"
+                          className="w-5 h-5"
+                          style={{
+                            filter:
+                              "invert(37%) sepia(93%) saturate(1421%) hue-rotate(187deg) brightness(91%) contrast(101%)",
+                          }}
+                          alt="view"
+                        />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+
+        {/* Pagination (dummy UI) */}
+        <div className="flex justify-center items-center gap-3 p-4 bg-white border-t border-gray-100 text-blue-600 font-bold">
+          <button className="px-2 hover:underline">{"<"}</button>
+          <button className="bg-blue-600 text-white w-8 h-8 rounded-md flex items-center justify-center">
+            1
+          </button>
+          <button className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-gray-100">
+            2
+          </button>
+          <button className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-gray-100">
+            3
+          </button>
+          <span className="text-gray-500">...</span>
+          <button className="px-2 hover:underline">{">"}</button>
         </div>
       </div>
     </div>
