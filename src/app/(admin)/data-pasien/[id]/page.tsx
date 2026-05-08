@@ -72,7 +72,7 @@ export default function DetailPasienPage() {
           <div className="flex justify-between items-start border-b border-gray-100 pb-4 mb-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-800">{pasien.nama}</h2>
-              <p className="text-primary font-bold text-lg mt-1">{pasien.noRm || "Belum ada No. RM"}</p>
+              <p className="text-primary font-bold text-lg mt-1">{pasien.id || "Belum ada No. RM"}</p>
             </div>
             <span className="px-4 py-2 bg-green-100 text-green-700 font-bold rounded-xl text-sm">
               Pasien Aktif

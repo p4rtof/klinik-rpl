@@ -24,6 +24,7 @@ export default function PeriksaPage() {
 
   // State Form Pemeriksaan
   const [formData, setFormData] = useState({
+    keluhan:"",
     tindakan: "",
     biayaTindakan: 0,
     diagnosis: "",
@@ -42,6 +43,7 @@ export default function PeriksaPage() {
 
         if (json.success) {
           setAntrean(json.data);
+          setFormData(prev => ({ ...prev, keluhan: json.data.keluhan || "" }));
           const resHistory = await fetch(
             `/api/rekam-medis/pasien/${json.data.pasienId}`,
           );
@@ -79,7 +81,7 @@ export default function PeriksaPage() {
       const payload: any = {
         pasienId: antrean.pasienId,
         jadwalId: antrean.id,
-        keluhan: antrean.keluhan || "Pemeriksaan rutin",
+        keluhan: formData.keluhan || "Pemeriksaan rutin",
         tindakan: formData.tindakan, // Mengirim nama tindakan yang dipilih
         diagnosis: [{ deskripsi: formData.diagnosis }], // Sesuai schema diagnosisItemSchema
         resep: formData.resep

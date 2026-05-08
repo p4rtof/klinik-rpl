@@ -19,9 +19,10 @@ export const updatePasienSchema = pasienSchema.partial();
 
 // === JADWAL / ANTRIAN ===
 export const jadwalSchema = z.object({
-  pasienId: z.string().uuid('ID Pasien tidak valid'),
+  pasienId: z.string().min(1, 'ID Pasien wajib diisi'),
   dokterId: z.string().uuid('ID Dokter tidak valid'),
-  jam: z.string().min(1, 'Jam wajib diisi'), // format "HH:MM"
+  jam: z.string().min(1, 'Jam wajib diisi'),
+  keluhan: z.string().min(1, 'Keluhan wajib diisi'), // <-- TAMBAHKAN INI
 });
 
 export const updateStatusJadwalSchema = z.object({
@@ -46,8 +47,8 @@ export const rujukanItemSchema = z.object({
 });
 
 export const rekamMedisSchema = z.object({
-  pasienId: z.string().uuid('ID Pasien tidak valid'),
-  jadwalId: z.string().uuid('ID Jadwal tidak valid').optional(), // jika ada, otomatis SELESAI
+  pasienId: z.string().min(1, 'ID Pasien wajib diisi'),
+  jadwalId: z.string().uuid('ID Jadwal tidak valid').optional(),
   keluhan: z.string().min(1, 'Keluhan wajib diisi'),
   tindakan: z.string().optional(),
   diagnosis: z.array(diagnosisItemSchema).min(1, 'Minimal 1 diagnosis wajib diisi'),
@@ -57,7 +58,7 @@ export const rekamMedisSchema = z.object({
 
 // === PEMBAYARAN ===
 export const pembayaranSchema = z.object({
-  pasienId: z.string().uuid('ID Pasien tidak valid'),
+  pasienId: z.string().min(1, 'ID Pasien wajib diisi'),
   rekamMedisId: z.string().uuid('ID Rekam Medis tidak valid').optional(),
   jumlah: z.number().positive('Jumlah harus lebih dari 0'),
   metode: z.enum(['TUNAI', 'TRANSFER', 'BPJS']),

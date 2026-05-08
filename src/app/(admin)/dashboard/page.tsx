@@ -87,15 +87,30 @@ export default function DashboardPage() {
   }, []);
 
   // --- 3. FUNGSI SIMPAN KUNJUNGAN ---
+  // --- 3. FUNGSI SIMPAN KUNJUNGAN ---
   const handleSimpanKunjungan = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validasi murni untuk mencegah ID kosong terkirim ke backend
+    if (!formData.pasienId) {
+      alert("Harap pilih pasien dari daftar terlebih dahulu!");
+      return;
+    }
+    if (!formData.dokterId) {
+      alert(
+        "Sistem belum mendeteksi Dokter Bertugas. Harap pastikan ada data Dokter.",
+      );
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // PERBAIKAN: Hanya kirim data yang diminta oleh jadwalSchema di backend
+      // Keluhan TIDAK ikut dikirim karena skema Jadwal Adit hanya butuh 3 data ini:
       const payload = {
         pasienId: formData.pasienId,
         dokterId: formData.dokterId,
         jam: formData.jam,
+        keluhan: formData.keluhan,
       };
 
       const res = await fetch("/api/antrian", {
@@ -110,19 +125,17 @@ export default function DashboardPage() {
       const json = await res.json();
       if (res.ok && json.success) {
         setShowModal(false);
-        // Reset form kembali ke kondisi awal
-        setFormData({
+        // Reset form kembali ke kondisi awal (tanpa membersihkan dokterId)
+        setFormData((prev) => ({
+          ...prev,
           pasienId: "",
-          dokterId: "",
           keluhan: "",
           jam: new Date()
             .toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
             .replace(".", ":"),
-        });
+        }));
         fetchData(); // Refresh data tabel & ringkasan
-        // alert("Antrean berhasil didaftarkan!");
       } else {
-        // Tampilkan pesan error spesifik jika gagal
         const errorMsg =
           json.details?.[0]?.message || json.error || "Data tidak valid";
         alert("Gagal: " + errorMsg);
@@ -249,8 +262,8 @@ export default function DashboardPage() {
                   <td className="p-4 text-left">{item.pasien?.nama || "-"}</td>
                   <td className="p-4">
                     {item.pasien?.jenisKelamin === "LAKI_LAKI"
-                      ? "Laki-laki"
-                      : "Perempuan"}
+                         ? "Laki-laki"
+                         : "Perempuan"} 
                   </td>
                   <td className="p-4">
                     {item.pasien?.tanggalLahir
@@ -288,7 +301,10 @@ export default function DashboardPage() {
             <div className="bg-primary px-6 py-4 text-white text-center">
               <h2 className="text-2xl font-bold">Tambah Kunjungan Baru</h2>
             </div>
-            <form onSubmit={handleSimpanKunjungan} className="py-4 px-8 space-y-4">
+            <form
+              onSubmit={handleSimpanKunjungan}
+              className="py-4 px-8 space-y-4"
+            >
               {/* Pilih Pasien */}
               <div className="mb-0">
                 <label className="text-xs font-bold text-gray-400 uppercase">
@@ -383,12 +399,13 @@ export default function DashboardPage() {
                   Keluhan Awal
                 </label>
                 <textarea
+                  required
                   value={formData.keluhan}
                   onChange={(e) =>
                     setFormData({ ...formData, keluhan: e.target.value })
                   }
                   className="w-full border-2 border-gray-400 p-3 rounded-xl mt-1 h-24 resize-none outline-none focus:border-primary"
-                  placeholder="Keluhan pasien (Opsional)..."
+                  placeholder="Keluhan pasien (Wajib)..."
                 />
               </div>
 
@@ -413,4 +430,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

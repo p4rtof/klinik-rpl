@@ -266,7 +266,7 @@ export default function DataPasienPage() {
         <table className="w-full text-left border-collapse">
           <thead className="bg-primary text-white text-center">
             <tr>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">No. RM</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">ID Pasien</th>
               <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Nama Lengkap</th>
               <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Tanggal Lahir</th>
               <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Jenis Kelamin</th>
@@ -278,7 +278,7 @@ export default function DataPasienPage() {
             {pasienList.length > 0 ? (
               pasienList.map((pasien: any) => (
                 <tr key={pasien.id} className="hover:bg-blue-50/50 transition-colors text-md">
-                  <td className="px-4 py-4 text-primary font-bold">{pasien.noRm || "-"}</td>
+                  <td className="px-4 py-4 text-primary font-bold">{pasien.id || "-"}</td>
                   <td className="px-4 py-4 text-left">{pasien.nama}</td>
                   <td className="px-4 py-4">
                     {pasien.tanggalLahir ? new Date(pasien.tanggalLahir).toLocaleDateString("id-ID", {
