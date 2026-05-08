@@ -511,3 +511,12 @@ Jalankan `npx tsx prisma/seed.ts` untuk membuat akun:
 |---|---|---|
 | Admin | `admin` | `admin123` |
 | Dokter (dr. Yofli) | `dryofli` | `admin123` |
+
+---
+
+## Perubahan Terbaru
+
+### 8 Mei 2026
+- **GET /api/pasien**: Sekarang mendukung filter berdasarkan `nama`, `noRm`, atau `id` menggunakan parameter `searchType`.
+- **POST /api/pasien**: ID pasien (`P0001`, `P0002`, ...) dan nomor rekam medis (`R0001`, `R0002`, ...) sekarang di-generate otomatis di backend.
+- **Prisma Schema**: Field `id` dan `noRm` pada tabel `Pasien` tidak lagi menggunakan `@default(uuid())` untuk mendukung ID yang diformat.
