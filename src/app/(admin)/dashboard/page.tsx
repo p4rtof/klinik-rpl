@@ -120,7 +120,7 @@ export default function DashboardPage() {
             .replace(".", ":"),
         });
         fetchData(); // Refresh data tabel & ringkasan
-        alert("Antrean berhasil didaftarkan!");
+        // alert("Antrean berhasil didaftarkan!");
       } else {
         // Tampilkan pesan error spesifik jika gagal
         const errorMsg =

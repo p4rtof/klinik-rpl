@@ -90,7 +90,7 @@ export default function PeriksaPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Jenis Kelamin</p>
-                <p className="font-bold text-gray-700">{antrean.pasien?.jenisKelamin || "Tidak diketahui"}</p>
+                <p className="font-bold text-gray-700">{antrean.pasien?.jenisKelamin  === "LAKI_LAKI" ? "Laki-laki" : "Perempuan"}</p>
               </div>
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Tanggal Lahir</p>
@@ -126,7 +126,12 @@ export default function PeriksaPage() {
                   {history.slice(0, 3).map((item, idx) => (
                     <tr key={idx}>
                       <td className="py-3 text-gray-500">{new Date(item.tanggal).toLocaleDateString('id-ID')}</td>
-                      <td className="py-3 font-semibold text-gray-700">{item.diagnosis}</td>
+                      <td className="py-3 font-semibold text-gray-700">
+                        {/* INI YANG DIPERBAIKI */}
+                        {Array.isArray(item.diagnosis) 
+                          ? item.diagnosis.map((d: any) => d.deskripsi).join(", ") 
+                          : (item.diagnosis?.deskripsi || "-")}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
