@@ -42,6 +42,7 @@ User ──────────────── Jadwal ──────�
  │                   RekamMedis ─────────┤
  │                       │               │
  └──── (dokterId) ───────┤           Pembayaran
+                      Tindakan
                       Diagnosis
                       Resep
                       Rujukan
@@ -477,8 +478,10 @@ Tidak butuh body. Hapus cookie token.
 | GET | `/api/antrian` | Antrian hari ini |
 | GET | `/api/antrian?dokterId=uuid` | Filter per dokter |
 | GET | `/api/antrian?tanggal=YYYY-MM-DD` | Filter per tanggal |
+| GET | `/api/antrian/[id]` | Detail spesifik antrean & pasien |
 | POST | `/api/antrian` | Buat antrian baru (Admin) |
-| PUT | `/api/antrian/[id]` | Update status antrian |
+| PUT | `/api/antrian/[id]` | Update jadwal penuh (status, jam, keluhan, dll) |
+| DELETE | `/api/antrian/[id]` | Hapus data antrian (Admin) |
 
 ---
 
@@ -498,8 +501,10 @@ Tidak butuh body. Hapus cookie token.
 | GET | `/api/pembayaran` | Semua pembayaran |
 | GET | `/api/pembayaran?pasienId=uuid` | Filter per pasien |
 | GET | `/api/pembayaran?status=BELUM_BAYAR` | Filter per status |
+| GET | `/api/pembayaran/[id]` | Detail lengkap transaksi & rekam medis |
 | POST | `/api/pembayaran` | Buat tagihan baru |
-| PUT | `/api/pembayaran/[id]` | Update status pembayaran |
+| PUT | `/api/pembayaran/[id]` | Update detail tagihan (jumlah, metode, status) |
+| DELETE | `/api/pembayaran/[id]` | Hapus data tagihan (Admin) |
 
 ---
 

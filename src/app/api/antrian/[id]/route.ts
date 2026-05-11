@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { updateStatusJadwalSchema } from "@/lib/validations";
+import { updateJadwalFullSchema } from "@/lib/validations";
 
 // PUT /api/antrian/[id]
 // Body: { status: "MENUNGGU" | "DIPERIKSA" | "SELESAI" | "BATAL" }
@@ -20,7 +20,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const parseResult = updateStatusJadwalSchema.safeParse(body);
+    const parseResult = updateJadwalFullSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
         {
@@ -51,16 +51,58 @@ export async function PUT(
 
     const updated = await prisma.jadwal.update({
       where: { id },
-      data: { status: parseResult.data.status },
+      data: parseResult.data,
     });
 
     return NextResponse.json({
       success: true,
       data: updated,
-      message: "Status antrian diperbarui",
+      message: "Antrian diperbarui",
     });
   } catch (error) {
     console.error("[PUT /api/antrian/[id]]", error);
+    return NextResponse.json(
+      { success: false, error: "Internal Server Error" },
+      { status: 500 },
+    );
+  }
+}
+
+// DELETE /api/antrian/[id]
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const role = request.headers.get("x-user-role");
+    // Biasanya hanya ADMIN yang boleh hapus kunjungan/antrian
+    if (role !== "ADMIN") {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 },
+      );
+    }
+
+    const { id } = await params;
+
+    const jadwal = await prisma.jadwal.findUnique({ where: { id } });
+    if (!jadwal) {
+      return NextResponse.json(
+        { success: false, error: "Antrean tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    await prisma.jadwal.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Data antrean berhasil dihapus",
+    });
+  } catch (error) {
+    console.error("[DELETE /api/antrian/[id]]", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
       { status: 500 },

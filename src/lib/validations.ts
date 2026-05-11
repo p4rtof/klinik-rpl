@@ -29,6 +29,13 @@ export const updateStatusJadwalSchema = z.object({
   status: z.enum(['MENUNGGU', 'DIPERIKSA', 'SELESAI', 'BATAL']),
 });
 
+export const updateJadwalFullSchema = z.object({
+  dokterId: z.string().uuid('ID Dokter tidak valid').optional(),
+  jam: z.string().optional(),
+  keluhan: z.string().optional(),
+  status: z.enum(['MENUNGGU', 'DIPERIKSA', 'SELESAI', 'BATAL']).optional(),
+});
+
 // === REKAM MEDIS ===
 // Satu request POST berisi keluhan + diagnosis[] + resep[] + rujukan (opsional)
 export const diagnosisItemSchema = z.object({
@@ -50,7 +57,7 @@ export const rekamMedisSchema = z.object({
   pasienId: z.string().min(1, 'ID Pasien wajib diisi'),
   jadwalId: z.string().uuid('ID Jadwal tidak valid').optional(),
   keluhan: z.string().min(1, 'Keluhan wajib diisi'),
-  tindakan: z.string().optional(),
+  tindakan: z.union([z.string(), z.array(z.string())]).optional(),
   diagnosis: z.array(diagnosisItemSchema).min(1, 'Minimal 1 diagnosis wajib diisi'),
   resep: z.array(resepItemSchema).default([]),
   rujukan: rujukanItemSchema.optional(),
@@ -67,4 +74,10 @@ export const pembayaranSchema = z.object({
 
 export const updateStatusPembayaranSchema = z.object({
   status: z.enum(['BELUM_BAYAR', 'LUNAS']),
+});
+
+export const updatePembayaranSchema = z.object({
+  jumlah: z.number().positive('Jumlah harus lebih dari 0').optional(),
+  metode: z.enum(['TUNAI', 'TRANSFER', 'BPJS']).optional(),
+  status: z.enum(['BELUM_BAYAR', 'LUNAS']).optional(),
 });

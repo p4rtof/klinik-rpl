@@ -24,7 +24,7 @@ export async function POST(request: Request) {
         {
           success: false,
           error: "Data tidak valid",
-          details: parseResult.error.errors,
+          details: parseResult.error.format(),
         },
         { status: 400 },
       );
@@ -51,45 +51,69 @@ export async function POST(request: Request) {
       }
     }
 
+    // Ambil nama lengkap dokter untuk snapshot
+    const dokter = await prisma.user.findUnique({
+      where: { id: userId! },
+      select: { namaLengkap: true },
+    });
+    if (!dokter) {
+      return NextResponse.json(
+        { success: false, error: "Data dokter tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    // Persiapkan data tindakan (array of deskripsi)
+    let tindakanArray: { deskripsi: string }[] = [];
+    if (data.tindakan) {
+      if (Array.isArray(data.tindakan)) {
+        tindakanArray = data.tindakan.map((t: string) => ({ deskripsi: t }));
+      } else {
+        // Jika format lama (string tunggal), mungkin dipisahkan koma
+        tindakanArray = data.tindakan.split(',').map((t: string) => ({ deskripsi: t.trim() })).filter((t: { deskripsi: string }) => t.deskripsi.length > 0);
+      }
+    }
+
     // Simpan semua data secara atomik dalam satu transaction
     const result = await prisma.$transaction(async (tx) => {
-  // 1. Buat rekam medis (TIDAK BERUBAH)
-  const rm = await tx.rekamMedis.create({
-    data: {
-      pasienId: data.pasienId,
-      dokterId: userId!,
-      jadwalId: data.jadwalId,
-      keluhan: data.keluhan,
-      tindakan: data.tindakan,
-      diagnosis: { create: data.diagnosis },
-      resep: { create: data.resep },
-      ...(data.rujukan ? { rujukan: { create: [data.rujukan] } } : {}),
-    },
-    include: { diagnosis: true, resep: true, rujukan: true },
-  });
+      // 1. Buat rekam medis (TIDAK BERUBAH)
+      const rm = await tx.rekamMedis.create({
+        data: {
+          pasienId: data.pasienId,
+          dokterId: userId!,
+          namaDokter: dokter.namaLengkap,
+          jadwalId: data.jadwalId,
+          keluhan: data.keluhan,
+          tindakan: { create: tindakanArray },
+          diagnosis: { create: data.diagnosis },
+          resep: { create: data.resep },
+          ...(data.rujukan ? { rujukan: { create: [data.rujukan] } } : {}),
+        },
+        include: { diagnosis: true, resep: true, rujukan: true, tindakan: true },
+      });
 
-  // 2. Tandai jadwal SELESAI (TIDAK BERUBAH)
-  if (data.jadwalId) {
-    await tx.jadwal.update({
-      where: { id: data.jadwalId },
-      data: { status: "SELESAI" },
+      // 2. Tandai jadwal SELESAI (TIDAK BERUBAH)
+      if (data.jadwalId) {
+        await tx.jadwal.update({
+          where: { id: data.jadwalId },
+          data: { status: "SELESAI" },
+        });
+      }
+
+      // 3. Auto buat tagihan pembayaran
+      await tx.pembayaran.create({
+        data: {
+          pasienId: data.pasienId,
+          rekamMedisId: rm.id,
+          jumlah: data.biayaTindakan ?? 0,
+          metode: "TUNAI",
+          status: "BELUM_BAYAR",
+          tanggal: new Date(),
+        },
+      });
+
+      return rm;
     });
-  }
-
-  // 3. ✅ TAMBAH INI — Auto buat tagihan pembayaran
-  await tx.pembayaran.create({
-    data: {
-      pasienId: data.pasienId,
-      rekamMedisId: rm.id,
-      jumlah: data.biayaTindakan ?? 0,
-      metode: "TUNAI",
-      status: "BELUM_BAYAR",
-      tanggal: new Date(),
-    },
-  });
-
-  return rm;
-});
 
     return NextResponse.json(
       { success: true, data: result, message: "Rekam medis berhasil disimpan" },

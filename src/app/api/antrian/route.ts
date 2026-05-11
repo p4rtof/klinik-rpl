@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         {
           success: false,
           error: "Data tidak valid",
-          details: parseResult.error.errors,
+          details: parseResult.error.format(),
         },
         { status: 400 },
       );

@@ -75,23 +75,37 @@ model Jadwal {
 // ============================================================
 
 model RekamMedis {
-  id        String   @id @default(uuid())
-  pasienId  String
-  dokterId  String
-  jadwalId  String?  // FK ke Jadwal (opsional)
-  tanggal   DateTime @default(now())
-  keluhan   String
-  tindakan  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  pasienId   String
+  dokterId   String
+  namaDokter String?  // Snapshot nama dokter saat rekam medis dibuat
+  jadwalId   String?  // FK ke Jadwal (opsional)
+  tanggal    DateTime @default(now())
+  keluhan    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  pasien    Pasien     @relation(fields: [pasienId], references: [id], onDelete: Cascade)
-  dokter    User       @relation(fields: [dokterId], references: [id], onDelete: Cascade)
-  jadwal    Jadwal?    @relation(fields: [jadwalId], references: [id])
-  diagnosis Diagnosis[]
-  resep     Resep[]
-  rujukan   Rujukan[]
+  pasien     Pasien     @relation(fields: [pasienId], references: [id], onDelete: Cascade)
+  dokter     User       @relation(fields: [dokterId], references: [id], onDelete: Cascade)
+  jadwal     Jadwal?    @relation(fields: [jadwalId], references: [id])
+  tindakan   Tindakan[]
+  diagnosis  Diagnosis[]
+  resep      Resep[]
+  rujukan    Rujukan[]
   pembayaran Pembayaran[]
+}
+
+// ============================================================
+// TINDAKAN
+// ============================================================
+
+model Tindakan {
+  id           String   @id @default(uuid())
+  rekamMedisId String
+  deskripsi    String
+  createdAt    DateTime @default(now())
+
+  rekamMedis RekamMedis @relation(fields: [rekamMedisId], references: [id], onDelete: Cascade)
 }
 
 // ============================================================
