@@ -22,7 +22,14 @@ export async function GET(request: Request) {
       },
       include: {
         pasien: {
-          select: { id: true, noRm: true, nama: true, noTelepon: true },
+          select: {
+            id: true,
+            noRm: true,
+            nama: true,
+            noTelepon: true,
+            jenisKelamin: true,
+            tanggalLahir: true,
+          },
         },
         dokter: { select: { id: true, namaLengkap: true, spesialisasi: true } },
       },
@@ -84,6 +91,7 @@ export async function POST(request: Request) {
         dokterId,
         tanggal: new Date(),
         jam,
+        keluhan: parseResult.data.keluhan ?? null, // ✅ tambah ini
         nomorAntrian: nextNomor,
         status: "MENUNGGU",
       },

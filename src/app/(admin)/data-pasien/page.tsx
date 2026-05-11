@@ -1,94 +1,288 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function DataPasienPage() {
-  // --- STATE UNTUK BACKEND (Hubungkan ke API Adit nanti) ---
-  const [pasienList, setPasienList] = useState([]); // Array kosong untuk menampung data dari backend
+  const router = useRouter();
+  const [pasienList, setPasienList] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isTableLoading, setIsTableLoading] = useState(true); // Tambah ini
+
+  // State untuk Search dan Sort
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("id");
+
+  // State untuk Hapus & Edit
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [isEdit, setIsEdit] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  // State Form
+  const [formData, setFormData] = useState({
+    nama: "",
+    tanggalLahir: "",
+    jenisKelamin: "",
+    alamat: "",
+    noTelepon: "",
+  });
+
+  // Fetch API dengan parameter Search
+  const fetchPasien = async () => {
+    setIsTableLoading(true); // Mulai loading
+    try {
+      const res = await fetch(`/api/pasien?search=${searchTerm}`, {
+        headers: { "x-user-role": "ADMIN" },
+      });
+      const json = await res.json();
+      if (json.success) setPasienList(json.data);
+    } catch (err) {
+      console.error("Gagal ambil data");
+    } finally {
+      setIsTableLoading(false); // Selesai loading
+    }
+  };
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchPasien();
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, sortBy]);
+
+  // --- LOGIKA HAPUS ---
+  const triggerDelete = (id: string) => setDeleteTarget(id);
+
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const res = await fetch(`/api/pasien/${deleteTarget}`, {
+        method: "DELETE",
+        headers: { "x-user-role": "ADMIN" },
+      });
+      if (res.ok) {
+        setDeleteTarget(null);
+        fetchPasien();
+      } else {
+        alert("Gagal menghapus data");
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan server");
+    }
+  };
+
+  // --- LOGIKA EDIT ---
+  const handleEdit = (pasien: any) => {
+    setFormData({
+      nama: pasien.nama,
+      tanggalLahir: pasien.tanggalLahir ? new Date(pasien.tanggalLahir).toISOString().split("T")[0] : "",
+      jenisKelamin: pasien.jenisKelamin,
+      alamat: pasien.alamat || "",
+      noTelepon: pasien.noTelepon || "",
+    });
+    setEditId(pasien.id);
+    setIsEdit(true);
+    setShowForm(true);
+  };
+
+  const handleTambahBaru = () => {
+    setFormData({ nama: "", tanggalLahir: "", jenisKelamin: "", alamat: "", noTelepon: "" });
+    setIsEdit(false);
+    setEditId(null);
+    setShowForm(true);
+  };
+
+  // --- LOGIKA SIMPAN ---
+  const handleSimpan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const dataToSend: any = {
+        nama: formData.nama,
+        jenisKelamin: formData.jenisKelamin,
+        tanggalLahir: formData.tanggalLahir,
+      };
+
+      if (formData.noTelepon && formData.noTelepon.trim() !== "") {
+        dataToSend.noTelepon = formData.noTelepon;
+      }
+      if (formData.alamat && formData.alamat.trim() !== "") {
+        dataToSend.alamat = formData.alamat;
+      }
+
+      const url = isEdit ? `/api/pasien/${editId}` : "/api/pasien";
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": "ADMIN",
+        },
+        body: JSON.stringify(dataToSend),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setShowForm(false);
+        fetchPasien();
+      } else {
+        const errorMsg = json.details?.[0]?.message || json.error || "Gagal menyimpan";
+        alert(errorMsg);
+      }
+    } catch (err) {
+      alert("Koneksi ke server gagal");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="max-w-8xl mx-auto space-y-6 text-black">
-      
-      {/* Header Halaman */}
+    <div className="max-w-8xl mx-auto space-y-6 text-black relative">
+      {/* HEADER */}
       <div className="flex justify-between items-center px-2">
         <div>
           <h1 className="text-3xl font-bold">Data Pasien</h1>
           <p className="text-gray-400 mt-1 text-lg">Kelola informasi lengkap seluruh pasien klinik</p>
         </div>
-        <button className="bg-green-theme hover:bg-green-theme-dark text-2xl text-white px-6 py-3 rounded-xl font-bold flex hover:cursor-pointer items-center gap-2 transition-all active:scale-95 shadow-md">
+        <button
+          onClick={handleTambahBaru}
+          className="bg-green-theme hover:bg-green-theme-dark text-2xl text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all active:scale-95 shadow-md cursor-pointer"
+        >
           <span className="text-2xl">+</span> Registrasi Pasien Baru
         </button>
       </div>
 
-      {/* Bar Pencarian & Filter */}
-      <div className="bg-white p-1 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
-        <div className="relative flex items-center w-full max-w-md">
-          <img 
-            src="/componen-admin/cari.svg" 
-            alt="cari" 
-            className="absolute left-4 w-5 h-5 opacity-40" 
-          />
+      {/* SEARCH & FILTER */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="border-2 border-gray-100 p-3 rounded-xl outline-none focus:border-primary font-semibold text-gray-600 bg-white shadow-sm"
+        >
+          <option value="id">Urutkan: ID Default</option>
+          <option value="nama">Urutkan: Nama (A-Z)</option>
+          <option value="tanggalLahir">Urutkan: Usia Termuda</option>
+        </select>
+
+        <div className="relative w-full md:w-96">
           <input
             type="text"
-            placeholder="Cari berdasarkan Nama atau Nomor RM..."
-            className="w-full border-2 border-gray-50 rounded-xl py-3 pl-12 pr-4 text-lg outline-none focus:border-primary transition-all bg-gray-50/50"
+            placeholder="Cari nama atau no. telp..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full border-2 border-gray-100 p-3 pl-11 rounded-xl focus:border-primary outline-none shadow-sm"
           />
-        </div>
-        
-        <div className="flex gap-3">
-          {/* Tombol Filter Opsional */}
-          <button className="flex items-center gap-2 px-4 py-2 border-2 border-gray-100 rounded-xl font-bold text-gray-600 hover:bg-gray-50">
-            <span>Filter</span>
-          </button>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-4 top-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
         </div>
       </div>
 
-      {/* Tabel Data Pasien */}
+      {/* TABEL */}
       <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-primary text-white">
+          <thead className="bg-primary text-white text-center">
             <tr>
-              <th className="px-4 py-2 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">ID pasien</th>
-              <th className="px-4 py-2 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Nama Lengkap</th>
-              <th className="px-4 py-2 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Jenis Kelamin</th>
-              <th className="px-4 py-2 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Tgl Lahir</th>
-              <th className="px-4 py-2 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">nomor telepon</th>
-              <th className="px-4 py-2 text-lg font-bold text-center uppercase">Aksi</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">ID Pasien</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Nama Lengkap</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Tanggal Lahir</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Jenis Kelamin</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Nomor Telepon</th>
+              <th className="px-4 py-3 uppercase text-lg text-center">Aksi</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {pasienList.length > 0 ? (
-              pasienList.map((pasien, index) => (
-                <tr key={index} className="hover:bg-gray-50 transition-colors">
-                  {/* Mapping data pasien akan ada di sini nanti */}
+          <tbody className="divide-y divide-gray-100 text-center font-semibold">
+            {isTableLoading ? (
+              // --- SKELETON LOADING ---
+              [...Array(5)].map((_, i) => (
+                <tr key={i} className="animate-pulse">
+                  <td className="p-4"><div className="h-6 bg-gray-100 rounded w-20 mx-auto"></div></td>
+                  <td className="p-4"><div className="h-6 bg-gray-100 rounded w-40"></div></td>
+                  <td className="p-4"><div className="h-6 bg-gray-100 rounded w-32 mx-auto"></div></td>
+                  <td className="p-4"><div className="h-6 bg-gray-100 rounded w-24 mx-auto"></div></td>
+                  <td className="p-4"><div className="h-6 bg-gray-100 rounded w-28 mx-auto"></div></td>
+                  <td className="p-4"><div className="h-8 bg-gray-100 rounded w-32 mx-auto"></div></td>
+                </tr>
+              ))
+            ) : pasienList.length > 0 ? (
+              pasienList.map((pasien: any) => (
+                <tr key={pasien.id} className="hover:bg-blue-50/50 transition-colors text-md">
+                  <td className="px-4 py-4 text-primary font-bold">{pasien.id || "-"}</td>
+                  <td className="px-4 py-4 text-left capitalize">{pasien.nama}</td>
+                  <td className="px-4 py-4">{pasien.tanggalLahir ? new Date(pasien.tanggalLahir).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) : "-"}</td>
+                  <td className="px-4 py-4">{pasien.jenisKelamin === "LAKI_LAKI" ? "Laki-laki" : "Perempuan"}</td>
+                  <td className="px-4 py-4">{pasien.noTelepon || "-"}</td>
+                  <td className="px-4 py-4 flex justify-center items-center gap-2">
+                    <Link href={`/data-pasien/${pasien.id}`} className="p-2 hover:bg-blue-100 rounded-lg transition-colors inline-block" title="Detail">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </Link>
+                    <button onClick={() => handleEdit(pasien)} className="p-2 hover:bg-yellow-100 rounded-lg transition-colors" title="Edit">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button onClick={() => triggerDelete(pasien.id)} className="p-2 hover:bg-red-100 rounded-lg transition-colors" title="Hapus">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </td>
                 </tr>
               ))
             ) : (
-              <tr>
-                <td colSpan={6} className="px-6 py-20 text-center">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center">
-                      <img src="/componen-admin/pasien.svg" className="w-10 h-10 opacity-20" alt="" />
-                    </div>
-                    <p className="text-gray-400 text-xl italic font-medium">
-                      Belum ada data pasien yang terdaftar.
-                    </p>
-                  </div>
-                </td>
-              </tr>
+              <tr><td colSpan={6} className="px-6 py-20 text-gray-400 italic">Belum ada data pasien yang ditemukan.</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination Simple */}
-      <div className="flex justify-between items-center px-4 py-2 text-gray-500 font-medium text-lg">
-        <p>Menampilkan 0 data pasien</p>
-        <div className="flex gap-2">
-          <button className="px-4 py-2 border rounded-xl hover:bg-gray-50 disabled:opacity-30" disabled>Sebelumnya</button>
-          <button className="px-4 py-2 border rounded-xl hover:bg-gray-50 disabled:opacity-30" disabled>Selanjutnya</button>
+      {/* MODAL FORM & DELETE PERSIS SAMA */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-primary p-6 text-white text-center">
+              <h2 className="text-2xl font-bold">{isEdit ? "Edit Data Pasien" : "Registrasi Pasien Baru"}</h2>
+            </div>
+            <form onSubmit={handleSimpan} className="p-8 space-y-4">
+              <input type="text" placeholder="Nama Lengkap" required value={formData.nama} className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none" onChange={(e) => setFormData({ ...formData, nama: e.target.value })} />
+              <div className="flex gap-4">
+                <select className="w-1/2 border-2 border-gray-100 p-3 rounded-xl outline-none" value={formData.jenisKelamin} onChange={(e) => setFormData({ ...formData, jenisKelamin: e.target.value })} required>
+                  <option value="" disabled>Pilih Kelamin</option>
+                  <option value="LAKI_LAKI">Laki-laki</option>
+                  <option value="PEREMPUAN">Perempuan</option>
+                </select>
+                <input type="date" required value={formData.tanggalLahir} className="w-1/2 border-2 border-gray-100 p-3 rounded-xl outline-none" onChange={(e) => setFormData({ ...formData, tanggalLahir: e.target.value })} />
+              </div>
+              <input type="text" placeholder="Nomor Telepon (Opsional)" value={formData.noTelepon} className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none" onChange={(e) => setFormData({ ...formData, noTelepon: e.target.value })} />
+              <textarea placeholder="Alamat Lengkap (Opsional)" value={formData.alamat} className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none h-24 resize-none" onChange={(e) => setFormData({ ...formData, alamat: e.target.value })} />
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-xl transition-all">Batal</button>
+                <button type="submit" disabled={isLoading} className="flex-1 bg-primary text-white py-3 rounded-xl font-bold shadow-lg hover:bg-primary-dark transition-all">
+                  {isLoading ? "Menyimpan..." : isEdit ? "Update Data" : "Simpan Data"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-center animate-in zoom-in duration-200">
+          <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full">
+            <h3 className="text-2xl font-bold mb-2 text-black">Hapus Data?</h3>
+            <p className="text-gray-500 mb-8 leading-relaxed">Data pasien yang dihapus tidak dapat dikembalikan. Apakah Anda yakin?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 font-bold text-gray-600 transition-colors">Batal</button>
+              <button onClick={executeDelete} className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 font-bold text-white shadow-lg transition-colors">Ya, Hapus</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -23,6 +23,10 @@ model User {
 
   jadwal     Jadwal[]
   rekamMedis RekamMedis[]
+  noTelepon String?
+  fotoUrl String?
+  sip     String?
+  str     String?
 }
 
 // ============================================================
@@ -56,6 +60,7 @@ model Jadwal {
   tanggal      DateTime
   jam          String   // e.g. "09:00"
   nomorAntrian Int
+  keluhan      String? 
   status       String   @default("MENUNGGU") // MENUNGGU | DIPERIKSA | SELESAI | BATAL
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -122,13 +127,26 @@ model Resep {
 // ============================================================
 
 model Rujukan {
-  id           String   @id @default(uuid())
-  rekamMedisId String
-  tujuan       String
-  keterangan   String?
-  createdAt    DateTime @default(now())
+  id             String   @id @default(uuid())
+  rekamMedisId   String
 
-  rekamMedis RekamMedis @relation(fields: [rekamMedisId], references: [id], onDelete: Cascade)
+  nomorSurat     String?  @unique
+  tanggalRujukan DateTime @default(now())
+
+  tujuan         String
+  poliTujuan     String?
+  diagnosa       String?
+  keterangan     String?
+
+  // enum diganti string
+  status         String   @default("DRAFT") // DRAFT | FINAL
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  rekamMedis     RekamMedis @relation(fields: [rekamMedisId], references: [id], onDelete: Cascade)
+
+  @@index([rekamMedisId])
 }
 
 // ============================================================

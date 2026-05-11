@@ -16,27 +16,28 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Tembak API Backend
       const response = await fetch("/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.json();
+      const resJson = await response.json(); // Format dari Adit: { success, data, message }
 
-      if (response.ok && data.success) {
-        if (data.data.role === "ADMIN") {
-          router.push("/dashboard");
-        } else if (data.data.role === "DOKTER") {
-          router.push("/patients");
+      if (response.ok) {
+        // Redirect menggunakan role dari Adit (ADMIN / DOKTER)
+        
+        const userRole = resJson.data?.role;
+
+        if (userRole === "ADMIN") {
+          router.push("/dashboard"); 
+        } else if (userRole === "DOKTER") {
+          router.push("/dashboard-dokter"); 
         } else {
           setError("Role tidak dikenali!");
         }
       } else {
-        setError(data.error || "Username atau password salah!");
+        setError(resJson.message || "Username atau password salah!");
       }
     } catch (err) {
       setError("Gagal terhubung ke server backend.");
@@ -47,12 +48,14 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center gap-30 bg-teal-50 p-4">
-      <div className="">
+      <div className="hidden lg:block">
+        {" "}
+        {/* Sembunyikan di layar kecil agar rapi */}
         <div className="text-center">
           <div className="text-primary-dark mb-3 font-extrabold text-4xl">
             Selamat Datang
           </div>
-          <div className="text-primary font-bold  mx-auto text-[28px]">
+          <div className="text-primary font-bold mx-auto text-[28px]">
             Aplikasi Sistem Administrasi Klinik dr. Yofli
           </div>
         </div>
@@ -69,7 +72,6 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
-          {/* Pesan Error */}
           {error && (
             <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg text-center font-medium border border-red-200">
               {error}
@@ -107,10 +109,11 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full text-white font-bold py-3 rounded-xl transition-all ${isLoading
+            className={`w-full text-white font-bold py-3 rounded-xl transition-all ${
+              isLoading
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-primary hover:bg-primary-dark"
-              }`}
+            }`}
           >
             {isLoading ? "Memproses..." : "Masuk"}
           </button>

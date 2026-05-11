@@ -1,6 +1,6 @@
 import { jwtVerify, SignJWT } from 'jose';
 
-const JWT_SECRET_KEY = process.env.JWT_SECRET || 'super_secret_klinik_key_2026';
+export const JWT_SECRET_KEY = process.env.JWT_SECRET || 'super_secret_klinik_key_2026';
 const key = new TextEncoder().encode(JWT_SECRET_KEY);
 
 export interface JwtPayload {
@@ -26,3 +26,4 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
     return null;
   }
 }
+

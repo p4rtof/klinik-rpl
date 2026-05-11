@@ -53,32 +53,43 @@ export async function POST(request: Request) {
 
     // Simpan semua data secara atomik dalam satu transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Buat rekam medis
-      const rm = await tx.rekamMedis.create({
-        data: {
-          pasienId: data.pasienId,
-          dokterId: userId!,
-          jadwalId: data.jadwalId,
-          keluhan: data.keluhan,
-          tindakan: data.tindakan,
-          // Buat diagnosis, resep, rujukan sekaligus via nested create
-          diagnosis: { create: data.diagnosis },
-          resep: { create: data.resep },
-          ...(data.rujukan ? { rujukan: { create: [data.rujukan] } } : {}),
-        },
-        include: { diagnosis: true, resep: true, rujukan: true },
-      });
+  // 1. Buat rekam medis (TIDAK BERUBAH)
+  const rm = await tx.rekamMedis.create({
+    data: {
+      pasienId: data.pasienId,
+      dokterId: userId!,
+      jadwalId: data.jadwalId,
+      keluhan: data.keluhan,
+      tindakan: data.tindakan,
+      diagnosis: { create: data.diagnosis },
+      resep: { create: data.resep },
+      ...(data.rujukan ? { rujukan: { create: [data.rujukan] } } : {}),
+    },
+    include: { diagnosis: true, resep: true, rujukan: true },
+  });
 
-      // 2. Jika jadwalId ada, tandai jadwal sebagai SELESAI
-      if (data.jadwalId) {
-        await tx.jadwal.update({
-          where: { id: data.jadwalId },
-          data: { status: "SELESAI" },
-        });
-      }
-
-      return rm;
+  // 2. Tandai jadwal SELESAI (TIDAK BERUBAH)
+  if (data.jadwalId) {
+    await tx.jadwal.update({
+      where: { id: data.jadwalId },
+      data: { status: "SELESAI" },
     });
+  }
+
+  // 3. ✅ TAMBAH INI — Auto buat tagihan pembayaran
+  await tx.pembayaran.create({
+    data: {
+      pasienId: data.pasienId,
+      rekamMedisId: rm.id,
+      jumlah: data.biayaTindakan ?? 0,
+      metode: "TUNAI",
+      status: "BELUM_BAYAR",
+      tanggal: new Date(),
+    },
+  });
+
+  return rm;
+});
 
     return NextResponse.json(
       { success: true, data: result, message: "Rekam medis berhasil disimpan" },
