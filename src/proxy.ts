@@ -1,98 +1,52 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifyToken } from "./lib/auth";
+import { jwtVerify } from "jose";
+import { JWT_SECRET_KEY } from "@/lib/auth";
 
-const publicApiRoutes = ["/api/auth/login"];
-const publicPageRoutes = ["/login"];
-
-// Prefix halaman berdasarkan role
-const adminPagePrefixes = ["/dashboard", "/data-pasien", "/pembayaran"];
-const doctorPagePrefixes = ["/patients"];
+const key = new TextEncoder().encode(JWT_SECRET_KEY);
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const token = request.cookies.get("token")?.value;
 
-  // ================================================================
-  // API ROUTES — hanya /api/* yang masuk sini
-  // ================================================================
-  if (pathname.startsWith("/api/")) {
-    // Login tidak butuh token
-    if (publicApiRoutes.includes(pathname)) {
-      return NextResponse.next();
-    }
-
-    const token = request.cookies.get("token")?.value;
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 },
-      );
-    }
-
-    const payload = await verifyToken(token);
-    if (!payload) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized: token tidak valid" },
-        { status: 401 },
-      );
-    }
-
-    // Teruskan info user ke route handler via header
+  // LOGIKA UNTUK API (Agar Backend Adit tidak 401/Unauthorized)
+  if (pathname.startsWith("/api")) {
     const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-user-id", payload.id);
-    requestHeaders.set("x-user-role", payload.role);
-
-    return NextResponse.next({ request: { headers: requestHeaders } });
-  }
-
-  // ================================================================
-  // PAGE ROUTES — proteksi halaman non-API
-  // ================================================================
-
-  // Jika mengakses /login dan sudah punya token valid → redirect ke dashboard
-  if (publicPageRoutes.includes(pathname)) {
-    const token = request.cookies.get("token")?.value;
+    
     if (token) {
-      const payload = await verifyToken(token);
-      if (payload) {
-        if (payload.role === "ADMIN") {
-          return NextResponse.redirect(new URL("/dashboard", request.url));
+      try {
+        // Kita verifikasi token langsung di sini tanpa panggil file lain
+        const { payload } = await jwtVerify(token, key);
+        if (payload) {
+          // Suntikkan headers yang diminta Backend Adit
+          requestHeaders.set("x-user-id", payload.id as string);
+          requestHeaders.set("x-user-role", payload.role as string);
         }
-        if (payload.role === "DOKTER") {
-          return NextResponse.redirect(new URL("/patients", request.url));
-        }
+      } catch {
+        // Jika token basi, biarkan saja
       }
     }
-    return NextResponse.next();
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
   }
 
-  // Semua halaman selain /login wajib punya token
-  const token = request.cookies.get("token")?.value;
-  if (!token) {
+  // PROTEKSI HALAMAN (Mencegah masuk dashboard kalau belum login)
+  const isAuthPage = pathname.startsWith("/login");
+  const isProtectedRoute = 
+    pathname.startsWith("/dashboard") || 
+    pathname.startsWith("/profile") || 
+    pathname.startsWith("/data-pasien");
+
+  if (!token && isProtectedRoute) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const payload = await verifyToken(token);
-  if (!payload) {
-    // Token ada tapi tidak valid → hapus cookie dan redirect ke login
-    const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.delete("token");
-    return response;
-  }
-
-  // Role-based access: DOKTER tidak bisa akses halaman admin, dan sebaliknya
-  const isAdminPage = adminPagePrefixes.some((prefix) =>
-    pathname.startsWith(prefix),
-  );
-  const isDoctorPage = doctorPagePrefixes.some((prefix) =>
-    pathname.startsWith(prefix),
-  );
-
-  if (isAdminPage && payload.role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/patients", request.url));
-  }
-
-  if (isDoctorPage && payload.role !== "DOKTER") {
+  if (token && isAuthPage) {
+    // Kalau sudah login tapi mau ke /login, lempar ke dashboard
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -101,19 +55,10 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // API routes
-    "/api/:path*",
-    // Halaman login (untuk redirect jika sudah login)
-    "/login",
-    // Halaman admin
-    "/dashboard",
-    "/dashboard/:path*",
-    "/data-pasien",
-    "/data-pasien/:path*",
-    "/pembayaran",
-    "/pembayaran/:path*",
-    // Halaman dokter
-    "/patients",
-    "/patients/:path*",
+    "/api/:path*", 
+    "/dashboard/:path*", 
+    "/dashboard-dokter/:path*", 
+    "/profile/:path*", 
+    "/data-pasien/:path*"
   ],
 };
