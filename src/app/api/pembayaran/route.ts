@@ -23,7 +23,15 @@ export async function GET(request: Request) {
         ...(status ? { status } : {}),
       },
       include: {
-        pasien: { select: { noRm: true, nama: true } },
+        pasien: { select: { noRm: true, nama: true, jenisKelamin: true } },
+        // INI TAMBAHANNYA BIAR RUJUKAN MUNCUL
+        rekamMedis: {
+          include: {
+            rujukan: true,
+            diagnosis: true,
+            dokter: { select: { namaLengkap: true } }
+          }
+        }
       },
       orderBy: { tanggal: "desc" },
     });
