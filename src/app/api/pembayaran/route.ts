@@ -35,6 +35,13 @@ export async function GET(request: Request) {
                 tujuan: true,
                 keterangan: true,
                 createdAt: true,
+                poliTujuan: true,
+                diagnosa: true,
+                tanggalRujukan: true,
+                status: true,
+                nomorSurat: true,
+                updatedAt: true,
+                
               },
             },
           },
