@@ -1,36 +1,131 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏥 Klinik RPL — Sistem Informasi Klinik
 
-## Getting Started
+> Aplikasi web manajemen klinik berbasis **Next.js 16**, **React 19**, **TypeScript**, **Tailwind CSS v4**, dan **Prisma ORM**.
 
-First, run the development server:
+---
 
+## 👥 Pembagian Tim
+
+| Peran | Tanggung Jawab |
+|---|---|
+| 🖥️ **Frontend Admin** | Dashboard admin, manajemen data pasien, pendaftaran antrean |
+| 🩺 **Frontend Dokter** | Dashboard dokter, pemeriksaan pasien, rekam medis |
+| ⚙️ **Backend** | API Routes, Database Schema, Autentikasi JWT |
+
+---
+
+## 🛠️ Tech Stack
+
+| Teknologi | Versi | Keterangan |
+|---|---|---|
+| [Next.js](https://nextjs.org) | 16.2.4 | Framework (App Router) |
+| React | 19.x | Library UI |
+| [Prisma](https://prisma.io) | ^6.x | ORM (Object-Relational Mapping) |
+| [SQLite](https://sqlite.org) | 3.x | Database (File-based) |
+| [Zod](https://zod.dev) | ^3.x | Schema Validation |
+| [Jose](https://github.com/panva/jose) | ^5.x | JWT for Edge Runtime |
+| Tailwind CSS | ^4.0 | Styling |
+
+---
+
+## 🚀 Cara Menjalankan Proyek
+
+### 1. Clone Repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/p4rtof/klinik-rpl.git
+cd klinik-rpl
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install Dependencies
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Konfigurasi Database
+Pastikan file `.env` sudah ada:
+```env
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="rahasia_super_aman_anda"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Lalu sinkronkan database dan jalankan seeder:
+```bash
+npx prisma db push
+npx tsx prisma/seed.ts
+```
 
-## Learn More
+### 4. Jalankan Development Server
+```bash
+npm run dev
+```
+Buka [http://localhost:3000](http://localhost:3000) di browser.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📁 Struktur Folder Utama
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+klinik-rpl/
+├── prisma/
+│   ├── schema.prisma      # Definisi Database Model
+│   └── seed.ts            # Data awal (admin & dokter)
+├── public/                # Aset statis
+├── src/
+│   ├── app/
+│   │   ├── (admin)/       # 🖥️ Halaman Dashboard Admin
+│   │   ├── (auth)/        # 🔐 Halaman Login
+│   │   ├── (doctor)/      # 🩺 Halaman Dashboard Dokter
+│   │   └── api/           # ⚙️ Backend — API Routes
+│   │       ├── antrian/
+│   │       ├── auth/
+│   │       ├── dokter/
+│   │       ├── pasien/
+│   │       └── rekam-medis/
+│   ├── lib/               # Shared Utilities (Prisma Client, Auth, Zod)
+│   └── proxy.ts           # Middleware Keamanan (JWT Check)
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📖 Panduan Backend & API
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Endpoint API
+Backend telah mengimplementasikan beberapa modul utama:
+*   `POST /api/auth/login`: Autentikasi user & pemberian session cookie.
+*   `GET /api/pasien`: Mengambil daftar pasien (Admin).
+*   `POST /api/antrian`: Membuat antrean baru.
+*   `POST /api/rekam-medis`: Input diagnosa oleh dokter.
+
+Dokumentasi detail mengenai API dapat dilihat pada: **[BACKEND_DOCS.md](BACKEND_DOCS.md)**
+
+### Contoh Fetch Data di Frontend
+```tsx
+// Contoh memanggil data pasien dari Client Component atau Server Component
+async function fetchData() {
+  const res = await fetch('/api/pasien');
+  const result = await res.json();
+  if (result.success) return result.data;
+}
+```
+
+---
+
+## 🔄 Workflow Kolaborasi Tim
+
+1. **Pull terbaru** dari `main`.
+2. **Buat branch** sesuai fitur: `feature/nama-fitur`.
+3. **Kerjakan fitur** dan lakukan commit.
+4. **Push** ke GitHub dan buat **Pull Request**.
+
+---
+
+## ⚠️ Hal yang Perlu Diperhatikan
+
+- **Next.js 16 + React 19**: Gunakan fitur terbaru seperti `use client` atau Server Actions jika diperlukan.
+- **Prisma**: Jika Anda mengubah `schema.prisma`, jangan lupa jalankan `npx prisma db push`.
+- **Security**: Semua API dilindungi oleh middleware (kecuali login). User harus login terlebih dahulu.
+- **Validation**: Backend menggunakan Zod untuk validasi input. Pastikan data yang dikirim sesuai skema di `src/lib/validations.ts`.
+
+---
+
+<p align="center">Proyek RPL · Kelompok Klinik · 2026</p>

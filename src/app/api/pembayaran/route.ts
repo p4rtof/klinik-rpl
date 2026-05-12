@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     if (role !== "ADMIN" && role !== "DOKTER") {
       return NextResponse.json(
         { success: false, error: "Forbidden" },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -23,15 +23,29 @@ export async function GET(request: Request) {
         ...(status ? { status } : {}),
       },
       include: {
-        pasien: { select: { noRm: true, nama: true, jenisKelamin: true } },
-        // INI TAMBAHANNYA BIAR RUJUKAN MUNCUL
+        pasien: { select: { noRm: true, nama: true } },
+
+        // >>> tambahan: ikutkan rekamMedis + rujukan
         rekamMedis: {
-          include: {
-            rujukan: true,
-            diagnosis: true,
-            dokter: { select: { namaLengkap: true } }
-          }
-        }
+          select: {
+            id: true,
+            rujukan: {
+              select: {
+                id: true,
+                tujuan: true,
+                keterangan: true,
+                createdAt: true,
+                poliTujuan: true,
+                diagnosa: true,
+                tanggalRujukan: true,
+                status: true,
+                nomorSurat: true,
+                updatedAt: true,
+                
+              },
+            },
+          },
+        },
       },
       orderBy: { tanggal: "desc" },
     });
@@ -41,7 +55,7 @@ export async function GET(request: Request) {
     console.error("[GET /api/pembayaran]", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -55,7 +69,7 @@ export async function POST(request: Request) {
     if (role !== "ADMIN") {
       return NextResponse.json(
         { success: false, error: "Forbidden" },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -66,15 +80,38 @@ export async function POST(request: Request) {
         {
           success: false,
           error: "Data tidak valid",
-          details: parseResult.error.errors,
+          // FIX Zod: bukan .errors, tapi .issues
+          details: parseResult.error.issues,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     const newPembayaran = await prisma.pembayaran.create({
       data: parseResult.data,
-      include: { pasien: { select: { noRm: true, nama: true } } },
+      include: {
+        pasien: { select: { noRm: true, nama: true } },
+        rekamMedis: {
+          select: {
+            id: true,
+            rujukan: {
+              select: {
+                id: true,
+                tujuan: true,
+                keterangan: true,
+                createdAt: true,
+                poliTujuan: true,
+                diagnosa: true,
+                tanggalRujukan: true,
+                status: true,
+                nomorSurat: true,
+                updatedAt: true,
+    
+              },
+            },
+          },
+        },
+      },
     });
 
     return NextResponse.json(
@@ -83,13 +120,13 @@ export async function POST(request: Request) {
         data: newPembayaran,
         message: "Data pembayaran berhasil dibuat",
       },
-      { status: 201 },
+      { status: 201 }
     );
   } catch (error) {
     console.error("[POST /api/pembayaran]", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

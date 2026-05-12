@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN "fotoUrl" TEXT;
+ALTER TABLE "User" ADD COLUMN "sip" TEXT;
+ALTER TABLE "User" ADD COLUMN "str" TEXT;

@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { JWT_SECRET_KEY } from "@/lib/auth";
 
-// Kunci ini harus sama dengan yang ada di src/lib/auth.ts milik Adit
-const JWT_SECRET_KEY = "super_secret_klinik_key_2026";
 const key = new TextEncoder().encode(JWT_SECRET_KEY);
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("token")?.value;
 
@@ -23,7 +22,7 @@ export async function middleware(request: NextRequest) {
           requestHeaders.set("x-user-id", payload.id as string);
           requestHeaders.set("x-user-role", payload.role as string);
         }
-      } catch (err) {
+      } catch {
         // Jika token basi, biarkan saja
       }
     }

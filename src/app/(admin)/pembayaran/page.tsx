@@ -314,16 +314,16 @@ export default function PembayaranPage() {
                     key={item.id}
                     className="hover:bg-blue-50 transition-colors text-center"
                   >
-                    <td className="px-4 py-3 w-[12%]  font-bold text-primary">
+                    <td className="px-4 py-3 font-bold text-primary">
                       {item.id.split("-")[0].toUpperCase()}
                     </td>
-                    <td className="px-4 py-3 w-[12%] font-bold">
+                    <td className="px-4 py-3 font-bold">
                       {item.pasien?.noRm?.split("-")[0]}
                     </td>
-                    <td className="px-4 py-3 w-[25%] font-semibold text-left capitalize">
+                    <td className="px-4 py-3 font-semibold text-left capitalize">
                       {item.pasien?.nama}
                     </td>
-                    <td className="px-4 py-3 w-[15%] font-bold">
+                    <td className="px-4 py-3 font-bold">
                       Rp {item.jumlah.toLocaleString("id-ID")}
                     </td>
                     <td className="px-4 py-3">
@@ -339,7 +339,7 @@ export default function PembayaranPage() {
                     </td>
 
                     {/* Rujukan */}
-                    <td className="px-4 py-3 w-[10%]">
+                    <td className="px-4 py-3">
                       {rujukan ? (
                         <button
                           onClick={() => openRujukanModal(rujukan)}
@@ -355,7 +355,7 @@ export default function PembayaranPage() {
                     </td>
 
                     {/* Aksi */}
-                    <td className="px-4 py-3 w-[14%]">
+                    <td className="px-4 py-3">
                       {item.status === "BELUM_BAYAR" ? (
                         <button
                           onClick={() => handleLunas(item.id)}
