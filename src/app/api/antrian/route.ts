@@ -9,15 +9,20 @@ export async function GET(request: Request) {
     const tanggalParam = searchParams.get("tanggal");
     const dokterId = searchParams.get("dokterId");
 
-    const targetDate = tanggalParam ? new Date(tanggalParam) : new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Kalau ada parameter tanggal, filter harinya. Kalau nggak ada, ambil semua!
+    let dateFilter = {};
+    if (tanggalParam) {
+      const targetDate = new Date(tanggalParam);
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      dateFilter = { tanggal: { gte: startOfDay, lte: endOfDay } };
+    }
 
     const antrian = await prisma.jadwal.findMany({
       where: {
-        tanggal: { gte: startOfDay, lte: endOfDay },
+        ...dateFilter,
         ...(dokterId ? { dokterId } : {}),
       },
       include: {
@@ -47,69 +52,59 @@ export async function GET(request: Request) {
 }
 
 // POST /api/antrian
-// Body: { pasienId, dokterId, jam }
-// nomorAntrian dihitung otomatis
 export async function POST(request: Request) {
   try {
     const role = request.headers.get("x-user-role");
     if (role !== "ADMIN") {
-      return NextResponse.json(
-        { success: false, error: "Forbidden" },
-        { status: 403 },
-      );
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();
-    const parseResult = jadwalSchema.safeParse(body);
-    if (!parseResult.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Data tidak valid",
-          details: parseResult.error.format(),
-        },
-        { status: 400 },
-      );
-    }
 
-    const { pasienId, dokterId, jam } = parseResult.data;
+    // 1. Tentukan tanggal (Ambil dari form Frontend, kalau kosong baru pakai hari ini)
+    const targetTanggal = body.tanggal ? new Date(body.tanggal) : new Date();
 
-    const startOfDay = new Date();
+    // Bikin batasan waktu pencarian dari 00:00 sampai 23:59 di tanggal yang DIPILIH
+    const startOfDay = new Date(targetTanggal);
     startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
+
+    const endOfDay = new Date(targetTanggal);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const lastJadwal = await prisma.jadwal.findFirst({
-      where: { dokterId, tanggal: { gte: startOfDay, lte: endOfDay } },
-      orderBy: { nomorAntrian: "desc" },
+    // 2. Hitung jumlah antrean HANYA pada tanggal yang dipilih supaya nomornya akurat
+    const count = await prisma.jadwal.count({
+      where: {
+        tanggal: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
     });
-    const nextNomor = lastJadwal ? lastJadwal.nomorAntrian + 1 : 1;
 
+    const nomorAntrian = count + 1;
+
+    // 3. Simpan ke database dengan tanggal yang benar
     const newJadwal = await prisma.jadwal.create({
       data: {
-        pasienId,
-        dokterId,
-        tanggal: new Date(),
-        jam,
-        keluhan: parseResult.data.keluhan ?? null, // ✅ tambah ini
-        nomorAntrian: nextNomor,
-        status: "MENUNGGU",
-      },
-      include: {
-        pasien: { select: { noRm: true, nama: true } },
-        dokter: { select: { namaLengkap: true } },
+        pasienId: body.pasienId,
+        dokterId: body.dokterId,
+        keluhan: body.keluhan,
+        jam: body.jam,
+        tanggal: targetTanggal, // ✅ Sekarang backend nurut sama form!
+        nomorAntrian: nomorAntrian,
       },
     });
 
-    return NextResponse.json(
-      { success: true, data: newJadwal, message: "Antrian berhasil dibuat" },
-      { status: 201 },
-    );
+    return NextResponse.json({
+      success: true,
+      data: newJadwal,
+      message: "Kunjungan berhasil dibuat",
+    });
   } catch (error) {
     console.error("[POST /api/antrian]", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
