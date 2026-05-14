@@ -82,6 +82,29 @@ model RekamMedis {
   jadwalId   String?  // FK ke Jadwal (opsional)
   tanggal    DateTime @default(now())
   keluhan    String
+  
+  // Anamnesis [siapkan saja dulu]
+  riwayatPenyakitSekarang String?
+  riwayatPenyakitDahulu   String?
+  riwayatObat             String?
+  riwayatKeluarga         String?
+  kebiasaan               String?  // free text: merokok/alkohol/dll
+
+  // Pemeriksaan Fisik [siapkan saja dulu]
+  tdSistolik      Int?
+  tdDiastolik     Int?
+  nadi            Int?
+  rr              Int?
+  suhu            Float?
+  spo2            Float?
+  beratBadan      Float?
+  tinggiBadan     Float?
+  pemeriksaanFisik String?
+
+  // Edukasi & Catatan [siapkan saja dulu]
+  edukasi          String?
+  catatanTambahan  String?
+
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -131,6 +154,7 @@ model Resep {
   namaObat     String
   dosis        String
   aturanPakai  String
+  jumlah       String?  // e.g. "10 tablet"
   createdAt    DateTime @default(now())
 
   rekamMedis RekamMedis @relation(fields: [rekamMedisId], references: [id], onDelete: Cascade)

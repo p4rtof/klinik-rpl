@@ -3,8 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { rekamMedisSchema } from "@/lib/validations";
 
 // POST /api/rekam-medis
-// Body: { pasienId, jadwalId?, keluhan, tindakan?, diagnosis: [{deskripsi}], resep: [{namaObat, dosis, aturanPakai}], rujukan?: {tujuan, keterangan?} }
-// Jika jadwalId diisi, status jadwal otomatis menjadi SELESAI
 export async function POST(request: Request) {
   try {
     const role = request.headers.get("x-user-role");
@@ -69,14 +67,13 @@ export async function POST(request: Request) {
       if (Array.isArray(data.tindakan)) {
         tindakanArray = data.tindakan.map((t: string) => ({ deskripsi: t }));
       } else {
-        // Jika format lama (string tunggal), mungkin dipisahkan koma
         tindakanArray = data.tindakan.split(',').map((t: string) => ({ deskripsi: t.trim() })).filter((t: { deskripsi: string }) => t.deskripsi.length > 0);
       }
     }
 
     // Simpan semua data secara atomik dalam satu transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Buat rekam medis (TIDAK BERUBAH)
+      // 1. Buat rekam medis
       const rm = await tx.rekamMedis.create({
         data: {
           pasienId: data.pasienId,
@@ -84,6 +81,29 @@ export async function POST(request: Request) {
           namaDokter: dokter.namaLengkap,
           jadwalId: data.jadwalId,
           keluhan: data.keluhan,
+          
+          // Anamnesis
+          riwayatPenyakitSekarang: data.riwayatPenyakitSekarang,
+          riwayatPenyakitDahulu: data.riwayatPenyakitDahulu,
+          riwayatObat: data.riwayatObat,
+          riwayatKeluarga: data.riwayatKeluarga,
+          kebiasaan: data.kebiasaan,
+
+          // Pemeriksaan Fisik
+          tdSistolik: data.tdSistolik,
+          tdDiastolik: data.tdDiastolik,
+          nadi: data.nadi,
+          rr: data.rr,
+          suhu: data.suhu,
+          spo2: data.spo2,
+          beratBadan: data.beratBadan,
+          tinggiBadan: data.tinggiBadan,
+          pemeriksaanFisik: data.pemeriksaanFisik,
+
+          // Edukasi & Catatan
+          edukasi: data.edukasi,
+          catatanTambahan: data.catatanTambahan,
+
           tindakan: { create: tindakanArray },
           diagnosis: { create: data.diagnosis },
           resep: { create: data.resep },
@@ -92,7 +112,7 @@ export async function POST(request: Request) {
         include: { diagnosis: true, resep: true, rujukan: true, tindakan: true },
       });
 
-      // 2. Tandai jadwal SELESAI (TIDAK BERUBAH)
+      // 2. Tandai jadwal SELESAI
       if (data.jadwalId) {
         await tx.jadwal.update({
           where: { id: data.jadwalId },
