@@ -85,6 +85,31 @@ model RekamMedis {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+   // === Tambahan Opsi 2: Anamnesis ===
+  anamnesisKeluhanUtama String?
+  anamnesisRps          String?
+  anamnesisRpd          String?
+  anamnesisRiwayatObat  String?
+  anamnesisRiwayatKeluarga String?
+  anamnesisKebiasaan    String?
+
+  // === Tambahan Opsi 2: Pemeriksaan / TTV ===
+  tdSistolik  Int?
+  tdDiastolik Int?
+  nadi        Int?
+  rr          Int?
+  suhu        Float?
+  spo2        Int?
+  bb          Float?
+  tb          Float?
+  bmi         Float?
+  pemeriksaanFisik String?
+
+  // === Tambahan Opsi 2: Edukasi & Catatan ===
+  edukasiPasien    String?
+  catatanTambahan  String?
+  rujukanCatatan   String? // catatan rujukan (teks bebas, beda dari tujuan RS)
+
   pasien    Pasien     @relation(fields: [pasienId], references: [id], onDelete: Cascade)
   dokter    User       @relation(fields: [dokterId], references: [id], onDelete: Cascade)
   jadwal    Jadwal?    @relation(fields: [jadwalId], references: [id])
@@ -134,7 +159,6 @@ model Rujukan {
   tanggalRujukan DateTime @default(now())
 
   tujuan         String
-  poliTujuan     String?
   diagnosa       String?
   keterangan     String?
 

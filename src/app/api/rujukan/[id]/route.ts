@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/rujukan/[id]  (opsional tapi sangat membantu untuk modal)
+// GET /api/rujukan/[id]
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const role = request.headers.get("x-user-role");
@@ -19,14 +19,21 @@ export async function GET(
       select: {
         id: true,
         tujuan: true,
-        poliTujuan: true,
-        diagnosa: true,
         keterangan: true,
         status: true,
         nomorSurat: true,
         tanggalRujukan: true,
         createdAt: true,
         updatedAt: true,
+        rekamMedis: {
+          select: {
+            diagnosis: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { deskripsi: true },
+            },
+          },
+        },
       },
     });
 
@@ -34,7 +41,16 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Not Found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: rujukan });
+    const diagnosaDokter = rujukan.rekamMedis?.diagnosis?.[0]?.deskripsi ?? null;
+    const { rekamMedis, ...rest } = rujukan;
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...rest,
+        diagnosa: diagnosaDokter, // diagnosa selalu dari dokter
+      },
+    });
   } catch (error) {
     console.error("[GET /api/rujukan/[id]]", error);
     return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
@@ -44,7 +60,7 @@ export async function GET(
 // PATCH /api/rujukan/[id]
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const role = request.headers.get("x-user-role");
@@ -68,7 +84,7 @@ export async function PATCH(
     if (existing.status === "FINAL") {
       return NextResponse.json(
         { success: false, error: "Rujukan sudah FINAL dan tidak bisa diedit" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -76,32 +92,42 @@ export async function PATCH(
       where: { id },
       data: {
         tujuan: body.tujuan ?? undefined,
-        poliTujuan: body.poliTujuan ?? undefined,
-        diagnosa: body.diagnosa ?? undefined,
         keterangan: body.keterangan ?? undefined,
-        // kalau kamu kirim tanggalRujukan dari UI (optional)
         tanggalRujukan: body.tanggalRujukan ? new Date(body.tanggalRujukan) : undefined,
       },
       select: {
         id: true,
         tujuan: true,
-        poliTujuan: true,
-        diagnosa: true,
         keterangan: true,
         status: true,
         nomorSurat: true,
         tanggalRujukan: true,
         createdAt: true,
         updatedAt: true,
+        rekamMedis: {
+          select: {
+            diagnosis: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { deskripsi: true },
+            },
+          },
+        },
       },
     });
 
-    return NextResponse.json({ success: true, data: updated });
+    const diagnosaDokter = updated.rekamMedis?.diagnosis?.[0]?.deskripsi ?? null;
+    const { rekamMedis, ...rest } = updated;
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...rest,
+        diagnosa: diagnosaDokter,
+      },
+    });
   } catch (error) {
     console.error("[PATCH /api/rujukan/[id]]", error);
-    return NextResponse.json(
-      { success: false, error: "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
   }
 }

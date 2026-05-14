@@ -13,6 +13,11 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
 
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  };
+
   const menuItems = [
     {
       name: "Dashboard",
@@ -67,16 +72,15 @@ export default function AdminLayout({
         </div>
 
         {/* Navigasi */}
-        {/* Navigasi */}
         <nav className="flex-1 p-3 space-y-1 mt-4">
           {menuItems.map((item, index) => {
-            // Pastikan path dicek dengan benar
-            const isActive = pathname === item.path;
+            // ✅ PERBAIKAN DI SINI: Gunakan startsWith agar sub-halaman tetap terdeteksi
+            const isActive = pathname.startsWith(item.path);
+            
             return (
               <Link
                 key={index}
                 href={item.path}
-                // Hapus logika yang mungkin memaksa setIsOpen(true) di sini jika ada
                 className={`flex items-center gap-3 py-3 px-3 rounded-xl transition-all group font-bold
           ${isActive ? "bg-primary text-white" : "bg-white text-primary hover:bg-primary hover:text-white"}
           ${!isOpen ? "justify-center" : ""}`}
@@ -101,7 +105,7 @@ export default function AdminLayout({
         {/* Tombol Logout */}
         <div className="p-4 mt-auto">
           <button
-            onClick={() => router.push("/login")}
+            onClick={handleLogout}
             className={`flex items-center border-3 border-red-theme gap-3 py-2.5 px-3 w-full rounded-xl text-red-theme font-bold hover:bg-red-theme hover:text-white transition-all shadow-sm active:scale-95 group ${!isOpen && "justify-center"}`}
           >
             <img
@@ -121,7 +125,7 @@ export default function AdminLayout({
         <header className="bg-white h-20 border-b border-gray-100 flex gap-5 items-center px-10 shadow-sm">
           <img
             src="/logo.svg"
-            alt="logout"
+            alt="logo"
             className="w-10 h-10 object-contain transition-all group-hover:brightness-0 group-hover:invert flex-shrink-0"
           />
           <h2 className="text-3xl font-semibold text-primary">

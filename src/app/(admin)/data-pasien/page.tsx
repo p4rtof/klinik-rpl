@@ -97,6 +97,11 @@ export default function DataPasienPage() {
   // --- LOGIKA SIMPAN ---
   const handleSimpan = async (e: React.FormEvent) => {
     e.preventDefault();
+    const today = new Date().toISOString().split("T")[0];
+    if (formData.tanggalLahir > today) {
+      alert("Oops, tanggal lahir gak boleh lewat dari hari ini ya!");
+      return;
+    }
     setIsLoading(true);
     try {
       const dataToSend: any = {
@@ -186,12 +191,12 @@ export default function DataPasienPage() {
         <table className="w-full text-left border-collapse">
           <thead className="bg-primary text-white text-center">
             <tr>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">ID Pasien</th>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Nama Lengkap</th>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Tanggal Lahir</th>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Jenis Kelamin</th>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Nomor Telepon</th>
-              <th className="px-4 py-3 uppercase text-lg text-center">Aksi</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-xl">ID Pasien</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-xl">Nama Lengkap</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-xl">Tanggal Lahir</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-xl">Jenis Kelamin</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-xl">Nomor Telepon</th>
+              <th className="px-4 py-3 uppercase text-xl text-center">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-center font-semibold">
@@ -209,13 +214,13 @@ export default function DataPasienPage() {
               ))
             ) : pasienList.length > 0 ? (
               pasienList.map((pasien: any) => (
-                <tr key={pasien.id} className="hover:bg-blue-50/50 transition-colors text-md">
-                  <td className="px-4 py-4 text-primary font-bold">{pasien.id || "-"}</td>
-                  <td className="px-4 py-4 text-left capitalize">{pasien.nama}</td>
-                  <td className="px-4 py-4">{pasien.tanggalLahir ? new Date(pasien.tanggalLahir).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) : "-"}</td>
-                  <td className="px-4 py-4">{pasien.jenisKelamin === "LAKI_LAKI" ? "Laki-laki" : "Perempuan"}</td>
-                  <td className="px-4 py-4">{pasien.noTelepon || "-"}</td>
-                  <td className="px-4 py-4 flex justify-center items-center gap-2">
+                <tr key={pasien.id} className="hover:bg-blue-50/50 transition-colors text-lg">
+                  <td className="px-4 py-2.5 text-primary font-bold">{pasien.id || "-"}</td>
+                  <td className="px-4 py-2.5 text-left capitalize">{pasien.nama}</td>
+                  <td className="px-4 py-2.5">{pasien.tanggalLahir ? new Date(pasien.tanggalLahir).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) : "-"}</td>
+                  <td className="px-4 py-2.5">{pasien.jenisKelamin === "LAKI_LAKI" ? "Laki-laki" : "Perempuan"}</td>
+                  <td className="px-4 py-2.5">{pasien.noTelepon || "-"}</td>
+                  <td className="px-4 py-2.5 flex justify-center items-center gap-2">
                     <Link href={`/data-pasien/${pasien.id}`} className="p-2 hover:bg-blue-100 rounded-lg transition-colors inline-block" title="Detail">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
