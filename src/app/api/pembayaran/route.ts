@@ -27,6 +27,8 @@ export async function GET(request: Request) {
         rekamMedis: {
           select: {
             id: true,
+            diagnosis: true,
+            catatanTambahan: true,
             rujukan: {
               select: {
                 id: true,
@@ -39,7 +41,6 @@ export async function GET(request: Request) {
                 status: true,
                 nomorSurat: true,
                 updatedAt: true,
-
               },
             },
           },
@@ -90,6 +91,8 @@ export async function POST(request: Request) {
         rekamMedis: {
           select: {
             id: true,
+            diagnosis: true,
+            catatanTambahan: true,
             rujukan: {
               select: {
                 id: true,
@@ -102,7 +105,6 @@ export async function POST(request: Request) {
                 status: true,
                 nomorSurat: true,
                 updatedAt: true,
-
               },
             },
           },

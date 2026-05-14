@@ -84,13 +84,13 @@ export default function PeriksaPage() {
         keluhan: formData.keluhan || "Pemeriksaan rutin",
         tindakan: formData.tindakan, // Mengirim nama tindakan yang dipilih
         biayaTindakan: formData.biayaTindakan, 
-        diagnosis: [{ deskripsi: formData.diagnosis }], // Sesuai schema diagnosisItemSchema
+        diagnosis: [{ diagnosis: formData.diagnosis }], // Sesuai schema diagnosisItemSchema
         resep: formData.resep
           ? [
               {
-                namaObat: formData.resep,
+                obatId: formData.resep,
                 dosis: "-",
-                aturanPakai: "Sesuai petunjuk dokter",
+                aturan: "Sesuai petunjuk dokter",
               },
             ]
           : [], // Sesuai resepItemSchema
@@ -113,34 +113,12 @@ export default function PeriksaPage() {
       });
 
       if (res.ok) {
-        // 1. Ambil data JSON hasil dari pembuatan Rekam Medis
-        const jsonRM = await res.json(); 
-        
-        // 2. Buat Tagihan Pembayaran Otomatis ke Backend (Admin)
-        if (jsonRM.success && jsonRM.data?.id) {
-          try {
-            await fetch("/api/pembayaran", {
-              method: "POST",
-              headers: { 
-                "Content-Type": "application/json",
-                "x-user-role": "DOKTER" // Tambahkan ini biar nggak dicegat Middleware
-              },
-              body: JSON.stringify({
-                pasienId: antrean.pasienId,
-                rekamMedisId: jsonRM.data.id, 
-                jumlah: formData.biayaTindakan, // Ambil dari harga dropdown yang dipilih
-                metode: "TUNAI" // Default tunai, admin bisa ubah nanti
-              })
-            });
-          } catch (err) {
-            console.error("Gagal membuat tagihan pembayaran", err);
-          }
-        }
-
-        // 3. Setelah semua beres, baru kembali ke dashboard
+        // Tagihan pembayaran sekarang sudah otomatis dibuat di backend 
+        // dalam satu transaksi atomik bersama rekam medis.
         router.push("/dashboard-dokter");
       } else {
-        alert("Gagal menyimpan pemeriksaan.");
+        const errJson = await res.json();
+        alert("Gagal menyimpan pemeriksaan: " + (errJson.error || "Unknown error"));
       }
     } catch (err) {
       alert("Terjadi kesalahan koneksi.");
@@ -244,7 +222,7 @@ export default function PeriksaPage() {
                       <td className="py-1.5 font-semibold">
                         {Array.isArray(item.diagnosis)
                           ? item.diagnosis
-                              .map((d: any) => d.deskripsi)
+                              .map((d: any) => d.diagnosis)
                               .join(", ")
                           : "-"}
                       </td>

@@ -20,6 +20,7 @@ export default function PembayaranPage() {
   const [selectedBayar, setSelectedBayar] = useState<any>(null);
   const [metodeBayar, setMetodeBayar] = useState("");
   const [bankTerpilih, setBankTerpilih] = useState("");
+  const [isBayarSaving, setIsBayarSaving] = useState(false);
 
   // Modal Detail & Edit
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -72,6 +73,7 @@ export default function PembayaranPage() {
       return;
     }
 
+    setIsBayarSaving(true);
     try {
       const metodeKirim = metodeBayar === "TRANSFER" ? `TRANSFER_${bankTerpilih}` : metodeBayar;
       const res = await fetch(`/api/pembayaran/${selectedBayar.id}`, {
@@ -81,11 +83,19 @@ export default function PembayaranPage() {
       });
       if (res.ok) {
         setIsBayarOpen(false);
+        const paymentId = selectedBayar.id;
         setMetodeBayar("");
         setBankTerpilih("");
         fetchPembayaran();
+        
+        // OTOMATIS CETAK setelah terima dana
+        cetakStruk(paymentId);
+      } else {
+        const errJson = await res.json();
+        alert("Gagal memproses pembayaran: " + (errJson.error || "Unknown error"));
       }
-    } catch (err) { alert("Terjadi kesalahan saat memproses pembayaran"); }
+    } catch (err) { alert("Terjadi kesalahan koneksi saat memproses pembayaran"); }
+    finally { setIsBayarSaving(false); }
   };
 
   const openDetailModal = (item: any) => {
@@ -123,13 +133,61 @@ export default function PembayaranPage() {
   };
 
   // --- FUNGSI RUJUKAN (Bawaan) ---
-  const openRujukanModal = (rujukan: any) => {
+  const openRujukanModal = (rm: any) => {
+    const rujukan = rm.rujukan;
     setSelectedRujukan(rujukan);
-    setRujukanForm({ tujuan: rujukan?.tujuan ?? "", poliTujuan: rujukan?.poliTujuan ?? "", diagnosa: rujukan?.diagnosa ?? "", keterangan: rujukan?.keterangan ?? "" });
-    setIsRujukanEditing(false); setIsRujukanOpen(true);
+    
+    // Auto-fill dari data dokter
+    const diagnosaDokter = rm.diagnosis?.map((d: any) => d.diagnosis).join(", ") || "";
+    const catatanDokter = rm.catatanTambahan || ""; // Menggunakan catatanTambahan sesuai schema
+    
+    setRujukanForm({ 
+      tujuan: rujukan?.tujuan ?? "", 
+      poliTujuan: rujukan?.poliTujuan ?? "", 
+      diagnosa: rujukan?.diagnosa || diagnosaDokter, 
+      keterangan: (rujukan?.keterangan && rujukan.keterangan !== "Rujukan berdasarkan hasil pemeriksaan dokter") 
+        ? rujukan.keterangan 
+        : catatanDokter || "Rujukan berdasarkan hasil pemeriksaan dokter"
+    });
+    
+    setIsRujukanEditing(false); 
+    setIsRujukanOpen(true);
   };
-  const saveRujukan = async () => {/* bawaan */};
-  const finalizeRujukan = async () => {/* bawaan */};
+  const saveRujukan = async () => {
+    setIsRujukanSaving(true);
+    try {
+      const res = await fetch(`/api/rujukan/${selectedRujukan.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rujukanForm),
+      });
+      if (res.ok) {
+        setIsRujukanEditing(false);
+        fetchPembayaran(); // Refresh data
+        alert("Rujukan berhasil disimpan!");
+      }
+    } catch (err) { alert("Gagal menyimpan rujukan"); }
+    finally { setIsRujukanSaving(false); }
+  };
+
+  const finalizeRujukan = async () => {
+    if (!confirm("Setelah difinalisasi, rujukan tidak dapat diedit lagi. Lanjutkan?")) return;
+    setIsRujukanSaving(true);
+    try {
+      const res = await fetch(`/api/rujukan/${selectedRujukan.id}/finalize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rujukanForm),
+      });
+      if (res.ok) {
+        setIsRujukanOpen(false);
+        fetchPembayaran();
+        alert("Rujukan berhasil difinalisasi!");
+      }
+    } catch (err) { alert("Gagal memfinalisasi rujukan"); }
+    finally { setIsRujukanSaving(false); }
+  };
+
   const cetakRujukan = () => { window.open(`/rujukan/print/${selectedRujukan.id}`, "_blank"); };
 
   return (
@@ -187,7 +245,7 @@ export default function PembayaranPage() {
           <tbody className="divide-y divide-gray-100">
             {isTableLoading ? (<tr><td colSpan={7} className="p-10 text-center">Memuat data...</td></tr>) : filteredList.length > 0 ? (
               filteredList.map((item) => {
-                const rujukan = item.rekamMedis?.rujukan?.[0] ?? null;
+                const rujukan = item.rekamMedis?.rujukan ?? null;
                 return (
                   <tr key={item.id} className="hover:bg-blue-50 transition-colors text-center text-lg font-semibold">
                     <td className="px-4 py-3 font-bold w-[12%] text-primary">{item.id.split("-")[0].toUpperCase()}</td>
@@ -201,7 +259,7 @@ export default function PembayaranPage() {
                     </td>
                     <td className="px-4 py-3">
                       {rujukan ? (
-                        <button onClick={() => openRujukanModal(rujukan)} className="bg-primary/10 text-primary px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-primary/20">Cek Rujukan</button>
+                        <button onClick={() => openRujukanModal(item.rekamMedis)} className="bg-primary/10 text-primary px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-primary/20">Cek Rujukan</button>
                       ) : <span className="text-gray-400">-</span>}
                     </td>
 
@@ -268,8 +326,10 @@ export default function PembayaranPage() {
                 </div>
               )}
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setIsBayarOpen(false)} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold text-gray-600 hover:bg-gray-200">Batal</button>
-                <button type="submit" className="flex-1 bg-green-500 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-green-600">Terima Dana & Cetak</button>
+                <button type="button" onClick={() => setIsBayarOpen(false)} disabled={isBayarSaving} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-50">Batal</button>
+                <button type="submit" disabled={isBayarSaving} className="flex-1 bg-green-500 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-green-600 disabled:opacity-50">
+                  {isBayarSaving ? "Memproses..." : "Terima Dana & Cetak"}
+                </button>
               </div>
             </form>
           </div>
@@ -401,7 +461,7 @@ export default function PembayaranPage() {
                   />
                 ) : (
                   <div className="w-full border-2 border-gray-50 p-3 rounded-xl bg-gray-50 font-semibold">
-                    {selectedRujukan?.poliTujuan || "-"}
+                    {selectedRujukan?.poliTujuan || rujukanForm.poliTujuan || "-"}
                   </div>
                 )}
               </div>
@@ -423,7 +483,7 @@ export default function PembayaranPage() {
                   />
                 ) : (
                   <div className="w-full border-2 border-gray-50 p-3 rounded-xl bg-gray-50 font-semibold">
-                    {selectedRujukan?.diagnosa || "-"}
+                    {selectedRujukan?.diagnosa || rujukanForm.diagnosa || "-"}
                   </div>
                 )}
               </div>
@@ -445,7 +505,7 @@ export default function PembayaranPage() {
                   />
                 ) : (
                   <div className="w-full border-2 border-gray-50 p-3 rounded-xl bg-gray-50 font-semibold whitespace-pre-wrap">
-                    {selectedRujukan?.keterangan || "-"}
+                    {selectedRujukan?.keterangan || rujukanForm.keterangan || "-"}
                   </div>
                 )}
               </div>

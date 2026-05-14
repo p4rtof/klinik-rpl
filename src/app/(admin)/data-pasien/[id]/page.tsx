@@ -135,7 +135,7 @@ export default function DetailPasienPage() {
                     </td>
                     <td className="py-4">
                       <p className="font-bold text-red-500 uppercase text-xs">
-                        {item.diagnosis?.[0]?.deskripsi || "Diagnosis Umum"}
+                        {item.diagnosis?.[0]?.diagnosis || "Diagnosis Umum"}
                       </p>
                     </td>
                     <td className="py-4 text-center font-bold text-primary">

@@ -33,7 +33,7 @@ export default function DataPasienPage() {
   const fetchPasien = async () => {
     setIsTableLoading(true); // Mulai loading
     try {
-      const res = await fetch(`/api/pasien?search=${searchTerm}`, {
+      const res = await fetch(`/api/pasien?search=${searchTerm}&sortBy=${sortBy}`, {
         headers: { "x-user-role": "ADMIN" },
       });
       const json = await res.json();

@@ -22,21 +22,19 @@ export async function GET(request: Request) {
     let whereCondition: any = undefined;
 
     if (search) {
-      if (searchType === "noRm") {
-        whereCondition = { noRm: { contains: search } };
-      } else if (searchType === "id") {
-        whereCondition = { id: { contains: search } };
-      } else if (searchType === "noTelepon") {
-        whereCondition = { noTelepon: { contains: search } };
-      } else {
-        whereCondition = { nama: { contains: search } };
-      }
+      whereCondition = {
+        OR: [
+          { nama: { contains: search } },
+          { id: { contains: search } },
+          { noTelepon: { contains: search } },
+        ],
+      };
     }
 
     let orderBy: any = { id: "asc" };
     if (sortBy === "nama") {
       orderBy = { nama: "asc" };
-    } else if (sortBy === "usia") {
+    } else if (sortBy === "tanggalLahir") {
       // Usia ASC = Tanggal Lahir DESC (paling muda dulu)
       orderBy = { tanggalLahir: "desc" };
     } else if (sortBy === "id") {

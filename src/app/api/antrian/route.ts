@@ -108,12 +108,23 @@ export async function POST(request: Request) {
     // Validasi jam jika tanggal hari ini
     if (checkTanggal.getTime() === today.getTime() && body.jam) {
       const now = new Date();
+      now.setSeconds(0, 0); // Abaikan detik dan milidetik untuk perbandingan yang adil
       const [hour, minute] = body.jam.split(':').map(Number);
       const scheduledTime = new Date();
       scheduledTime.setHours(hour, minute, 0, 0);
       
+      // Jika jam terlewat, cek selisihnya.
       if (scheduledTime < now) {
-        return NextResponse.json({ success: false, error: "Jam sudah terlewat" }, { status: 400 });
+        const diffInMinutes = (now.getTime() - scheduledTime.getTime()) / (1000 * 60);
+        
+        if (diffInMinutes <= 10) {
+          // Masih dalam toleransi 10 menit, ubah jam ke jam sekarang agar valid
+          const currentHour = now.getHours().toString().padStart(2, '0');
+          const currentMinute = now.getMinutes().toString().padStart(2, '0');
+          body.jam = `${currentHour}:${currentMinute}`;
+        } else {
+          return NextResponse.json({ success: false, error: "Jam sudah terlewat" }, { status: 400 });
+        }
       }
     }
 

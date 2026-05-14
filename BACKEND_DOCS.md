@@ -80,7 +80,7 @@ User ──────────────── Jadwal ──────�
 
 1. Panggil `login()` → cookie `token` otomatis tersimpan oleh browser
 2. Semua request berikutnya **tidak perlu kirim token manual** — browser kirim otomatis
-3. Halaman yang membutuhkan login sudah **otomatis dilindungi** oleh `proxy.ts`
+3. Halaman yang membutuhkan login sudah **otomatis dilindungi** oleh `middleware.ts`
 
 ---
 
@@ -508,6 +508,16 @@ Tidak butuh body. Hapus cookie token.
 
 ---
 
+### 🏥 Rujukan (`/api/rujukan`) — Akses: ADMIN & DOKTER
+
+| Method | Endpoint | Keterangan |
+|---|---|---|
+| GET | `/api/rujukan/[id]` | Detail rujukan lengkap |
+| PATCH | `/api/rujukan/[id]` | Update detail rujukan (DRAFT) |
+| POST | `/api/rujukan/[id]/finalize` | Finalisasi rujukan (Kunci data & beri No. Surat) |
+
+---
+
 ## Akun Default
 
 Jalankan `npx tsx prisma/seed.ts` untuk membuat akun:
@@ -520,6 +530,13 @@ Jalankan `npx tsx prisma/seed.ts` untuk membuat akun:
 ---
 
 ## Perubahan Terbaru
+
+### 14 Mei 2026
+- **Middleware Migration**: Proteksi route dan injeksi header auth resmi dipindah ke `src/middleware.ts`. File `proxy.ts` sudah dideprecated.
+- **Atomic Transaction (Rekam Medis)**: `POST /api/rekam-medis` sekarang secara otomatis membuat record `Pembayaran` (tagihan) agar data tidak terputus.
+- **Rujukan Sync**: Implementasi fitur **Auto-Fill Rujukan** (menarik data diagnosa dan catatan tambahan dokter ke form rujukan admin).
+- **Schema Update**: Field `tindakan` pada Rekam Medis kini menggunakan format `String` (scalar) untuk kemudahan input dokter.
+- **API Rujukan**: Penambahan endpoint `/api/rujukan/[id]/finalize` untuk proses penguncian data rujukan oleh Admin.
 
 ### 8 Mei 2026
 - **GET /api/pasien**: Sekarang mendukung filter berdasarkan `nama`, `noRm`, atau `id` menggunakan parameter `searchType`.

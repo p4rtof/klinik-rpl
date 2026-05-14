@@ -18,7 +18,7 @@ function isDoctorRoute(pathname: string) {
   return DOCTOR_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("token")?.value;
 
@@ -35,7 +35,7 @@ export async function proxy(request: NextRequest) {
           requestHeaders.set("x-user-role", payload.role as string);
         }
       } catch {
-        // Token basi/invalid — biarkan, API routes yang handle
+        // Token basi/invalid
       }
     }
     return NextResponse.next({ request: { headers: requestHeaders } });
@@ -95,6 +95,7 @@ export const config = {
     "/jadwal-saya/:path*",
     "/periksa/:path*",
     "/rekam-medis/:path*",
+    "/profile",
     "/profile/:path*",
     "/login",
   ],

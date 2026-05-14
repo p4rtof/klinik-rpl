@@ -40,13 +40,13 @@ export const updateJadwalFullSchema = z.object({
 // === REKAM MEDIS ===
 // Satu request POST berisi keluhan + diagnosis[] + resep[] + rujukan (opsional)
 export const diagnosisItemSchema = z.object({
-  deskripsi: z.string().min(1, 'Deskripsi diagnosis wajib diisi'),
+  diagnosis: z.string().min(1, 'Diagnosis wajib diisi'),
 });
 
 export const resepItemSchema = z.object({
-  namaObat: z.string().min(1, 'Nama obat wajib diisi'),
+  obatId: z.string().min(1, 'Nama obat wajib diisi'),
   dosis: z.string().min(1, 'Dosis wajib diisi'),
-  aturanPakai: z.string().min(1, 'Aturan pakai wajib diisi'),
+  aturan: z.string().min(1, 'Aturan pakai wajib diisi'),
   jumlah: z.string().optional(),
 });
 
@@ -62,27 +62,30 @@ export const rekamMedisSchema = z.object({
   jadwalId: z.string().uuid('ID Jadwal tidak valid').optional(),
   keluhan: z.string().min(1, 'Keluhan wajib diisi'),
 
-  // Anamnesis
-  riwayatPenyakitSekarang: z.string().optional(),
-  riwayatPenyakitDahulu: z.string().optional(),
-  riwayatObat: z.string().optional(),
-  riwayatKeluarga: z.string().optional(),
-  kebiasaan: z.string().optional(),
+  // Anamnesis (Synced)
+  anamnesisKeluhanUtama: z.string().optional(),
+  anamnesisRps: z.string().optional(),
+  anamnesisRpd: z.string().optional(),
+  anamnesisRiwayatObat: z.string().optional(),
+  anamnesisRiwayatKeluarga: z.string().optional(),
+  anamnesisKebiasaan: z.string().optional(),
 
-  // Pemeriksaan Fisik
+  // Pemeriksaan Fisik / TTV (Synced)
   tdSistolik: z.number().int().optional(),
   tdDiastolik: z.number().int().optional(),
   nadi: z.number().int().optional(),
   rr: z.number().int().optional(),
   suhu: z.number().optional(),
   spo2: z.number().optional(),
-  beratBadan: z.number().optional(),
-  tinggiBadan: z.number().optional(),
+  bb: z.number().optional(),
+  tb: z.number().optional(),
+  bmi: z.number().optional(),
   pemeriksaanFisik: z.string().optional(),
 
   // Edukasi & Catatan
-  edukasi: z.string().optional(),
+  edukasiPasien: z.string().optional(),
   catatanTambahan: z.string().optional(),
+  rujukanCatatan: z.string().optional(),
 
   tindakan: z.union([z.string(), z.array(z.string())]).optional(),
   diagnosis: z.array(diagnosisItemSchema).min(1, 'Minimal 1 diagnosis wajib diisi'),

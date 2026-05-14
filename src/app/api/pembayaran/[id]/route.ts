@@ -32,7 +32,6 @@ export async function GET(
             dokter: { select: { namaLengkap: true, spesialisasi: true } },
             diagnosis: true,
             resep: true,
-            tindakan: true,
             rujukan: true,
           },
         },
@@ -79,7 +78,6 @@ export async function PUT(
         rekamMedis: {
           include: {
             diagnosis: true,
-            tindakan: true,
             rujukan: true,
           },
         },

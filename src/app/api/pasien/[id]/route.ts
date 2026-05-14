@@ -22,7 +22,7 @@ export async function GET(
       include: {
         rekamMedis: {
           orderBy: { tanggal: "desc" },
-          include: { diagnosis: true, resep: true, rujukan: true, tindakan: true },
+          include: { diagnosis: true, resep: true, rujukan: true },
         },
         pembayaran: { orderBy: { tanggal: "desc" } },
       },
