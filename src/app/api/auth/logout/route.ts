@@ -6,8 +6,13 @@ export async function POST() {
     { status: 200 }
   );
 
-  // Hapus cookie token
-  response.cookies.delete('token');
+  // Hapus cookie token dengan path yang sesuai
+  response.cookies.set({
+    name: 'token',
+    value: '',
+    path: '/',
+    expires: new Date(0), // Set kedaluwarsa ke masa lalu
+  });
 
   return response;
 }

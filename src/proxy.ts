@@ -11,11 +11,11 @@ const ADMIN_ROUTES = ["/dashboard", "/data-pasien", "/pembayaran"];
 const DOCTOR_ROUTES = ["/dashboard-dokter", "/jadwal-saya", "/periksa", "/rekam-medis", "/profile"];
 
 function isAdminRoute(pathname: string) {
-  return ADMIN_ROUTES.some((r) => pathname.startsWith(r));
+  return ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
 }
 
 function isDoctorRoute(pathname: string) {
-  return DOCTOR_ROUTES.some((r) => pathname.startsWith(r));
+  return DOCTOR_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
 }
 
 export async function proxy(request: NextRequest) {
