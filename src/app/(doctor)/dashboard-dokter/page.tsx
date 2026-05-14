@@ -20,7 +20,9 @@ export default function DashboardDokterPage() {
   const [page, setPage] = useState(1);
   const pageSize = 8;
 
-  const pasienSaatIni: any = antreanList.find((a: any) => a.status === "MENUNGGU");
+  const pasienSaatIni: any = antreanList.find(
+    (a: any) => a.status === "MENUNGGU",
+  );
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -31,7 +33,8 @@ export default function DashboardDokterPage() {
         setAntreanList(json.data);
         setRingkasan({
           total: json.data.length,
-          menunggu: json.data.filter((a: any) => a.status === "MENUNGGU").length,
+          menunggu: json.data.filter((a: any) => a.status === "MENUNGGU")
+            .length,
           selesai: json.data.filter((a: any) => a.status === "SELESAI").length,
         });
       }
@@ -79,10 +82,34 @@ export default function DashboardDokterPage() {
     });
 
     const sorted = [...filtered].sort((a: any, b: any) => {
-      if (sortBy === "rm") return (a.pasien?.noRm || "").localeCompare(b.pasien?.noRm || "");
-      if (sortBy === "nama") return (a.pasien?.nama || "").localeCompare(b.pasien?.nama || "");
-      if (sortBy === "usia") return hitungUsia(a.pasien?.tanggalLahir) - hitungUsia(b.pasien?.tanggalLahir);
-      if (sortBy === "keluhan") return (a.keluhan || "").localeCompare(b.keluhan || "");
+      // DEFAULT: MENUNGGU DI ATAS
+      if (sortBy === "default") {
+        if (a.status === "MENUNGGU" && b.status !== "MENUNGGU") return -1;
+        if (a.status !== "MENUNGGU" && b.status === "MENUNGGU") return 1;
+
+        // optional: urut nomor antrean / RM setelah status
+        return (a.pasien?.noRm || "").localeCompare(b.pasien?.noRm || "");
+      }
+
+      if (sortBy === "rm") {
+        return (a.pasien?.noRm || "").localeCompare(b.pasien?.noRm || "");
+      }
+
+      if (sortBy === "nama") {
+        return (a.pasien?.nama || "").localeCompare(b.pasien?.nama || "");
+      }
+
+      if (sortBy === "usia") {
+        return (
+          hitungUsia(a.pasien?.tanggalLahir) -
+          hitungUsia(b.pasien?.tanggalLahir)
+        );
+      }
+
+      if (sortBy === "keluhan") {
+        return (a.keluhan || "").localeCompare(b.keluhan || "");
+      }
+
       return 0;
     });
 
@@ -99,14 +126,19 @@ export default function DashboardDokterPage() {
 
   const renderPageButtons = () => {
     const maxButtons = 9;
-    const pages = Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, maxButtons);
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1).slice(
+      0,
+      maxButtons,
+    );
 
     return pages.map((p) => (
       <button
         key={p}
         onClick={() => setPage(p)}
         className={`px-3 py-1 rounded-md font-bold ${
-          p === safePage ? "bg-primary text-white" : "text-primary hover:bg-blue-50"
+          p === safePage
+            ? "bg-primary text-white"
+            : "text-primary hover:bg-blue-50"
         }`}
       >
         {p}
@@ -205,7 +237,9 @@ export default function DashboardDokterPage() {
 
       {/* Title + Filter bar (FIGMA) */}
       <div className="flex items-center justify-between px-2">
-        <h2 className="text-2xl font-bold">Pasien Anda yang sedang mengantri</h2>
+        <h2 className="text-2xl font-bold">
+          Pasien Anda yang sedang mengantri
+        </h2>
 
         <div className="flex gap-3 items-center">
           <select
@@ -227,7 +261,9 @@ export default function DashboardDokterPage() {
               placeholder="Cari Pasien ..."
               className="border border-gray-200 rounded-lg pl-10 pr-3 py-2 text-sm w-64"
             />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <img src="/componen-admin/cari.svg" alt="cari" />
+            </span>
           </div>
         </div>
       </div>
@@ -251,18 +287,35 @@ export default function DashboardDokterPage() {
             {isLoading ? (
               [...Array(3)].map((_, i) => (
                 <tr key={i} className="animate-pulse">
-                  <td className="p-6"><div className="h-8 bg-gray-100 rounded-md w-8 mx-auto"></div></td>
-                  <td className="p-6"><div className="h-6 bg-gray-100 rounded-md w-40"></div></td>
-                  <td className="p-6"><div className="h-6 bg-gray-100 rounded-md w-16 mx-auto"></div></td>
-                  <td className="p-6"><div className="h-6 bg-gray-100 rounded-md w-24 mx-auto"></div></td>
-                  <td className="p-6"><div className="h-6 bg-gray-100 rounded-md w-32 mx-auto"></div></td>
-                  <td className="p-6"><div className="h-6 bg-gray-100 rounded-md w-24 mx-auto"></div></td>
-                  <td className="p-6"><div className="h-6 bg-gray-100 rounded-md w-24 mx-auto"></div></td>
+                  <td className="p-6">
+                    <div className="h-8 bg-gray-100 rounded-md w-8 mx-auto"></div>
+                  </td>
+                  <td className="p-6">
+                    <div className="h-6 bg-gray-100 rounded-md w-40"></div>
+                  </td>
+                  <td className="p-6">
+                    <div className="h-6 bg-gray-100 rounded-md w-16 mx-auto"></div>
+                  </td>
+                  <td className="p-6">
+                    <div className="h-6 bg-gray-100 rounded-md w-24 mx-auto"></div>
+                  </td>
+                  <td className="p-6">
+                    <div className="h-6 bg-gray-100 rounded-md w-32 mx-auto"></div>
+                  </td>
+                  <td className="p-6">
+                    <div className="h-6 bg-gray-100 rounded-md w-24 mx-auto"></div>
+                  </td>
+                  <td className="p-6">
+                    <div className="h-6 bg-gray-100 rounded-md w-24 mx-auto"></div>
+                  </td>
                 </tr>
               ))
             ) : pagedData.length > 0 ? (
               pagedData.map((item: any) => (
-                <tr key={item.id} className="hover:bg-gray-50/30 transition-colors">
+                <tr
+                  key={item.id}
+                  className="hover:bg-gray-50/30 transition-colors"
+                >
                   <td className="text-center w-fit text-lg font-bold text-primary">
                     {item.pasien?.noRm}
                   </td>
@@ -274,11 +327,15 @@ export default function DashboardDokterPage() {
                   </td>
 
                   <td className="text-lg text-black text-center font-bold">
-                    {item.pasien?.jenisKelamin === "LAKI_LAKI" ? "Laki-laki" : "Perempuan"}
+                    {item.pasien?.jenisKelamin === "LAKI_LAKI"
+                      ? "Laki-laki"
+                      : "Perempuan"}
                   </td>
 
                   <td className="text-center">
-                    {item.pasien?.tanggalLahir ? `${hitungUsia(item.pasien.tanggalLahir)} Tahun` : "-"}
+                    {item.pasien?.tanggalLahir
+                      ? `${hitungUsia(item.pasien.tanggalLahir)} Tahun`
+                      : "-"}
                   </td>
 
                   <td className="text-left my-3 pl-2">{item.keluhan || "-"}</td>
@@ -302,8 +359,19 @@ export default function DashboardDokterPage() {
                         className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all"
                         title="Riwayat"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
                         </svg>
                       </Link>
 
@@ -321,7 +389,10 @@ export default function DashboardDokterPage() {
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="p-10 text-gray-400 text-center italic">
+                <td
+                  colSpan={7}
+                  className="p-10 text-gray-400 text-center italic"
+                >
                   Data tidak ditemukan.
                 </td>
               </tr>
@@ -367,7 +438,9 @@ function StatCard({
 }: any) {
   return (
     <div className="flex-1 bg-white p-4 rounded-2xl border border-gray-50 flex items-center gap-4">
-      <div className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center shrink-0`}>
+      <div
+        className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center shrink-0`}
+      >
         <img src={icon} className="w-6 h-6" alt="icon" />
       </div>
       <div>

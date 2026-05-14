@@ -139,10 +139,10 @@ export default async function PrintRujukanPage({
               <div className="cell label">Tujuan</div>
               <div className="cell">: {rujukan.tujuan}</div>
             </div>
-            <div className="row">
+            {/* <div className="row">
               <div className="cell label">Poli Tujuan</div>
               <div className="cell">: {rujukan.poliTujuan ?? "-"}</div>
-            </div>
+            </div> */}
             <div className="row">
               <div className="cell label">Diagnosa</div>
               <div className="cell">: {rujukan.diagnosa ?? "-"}</div>

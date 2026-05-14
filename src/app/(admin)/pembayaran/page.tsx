@@ -28,6 +28,9 @@ export default function PembayaranPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editData, setEditData] = useState({ id: "", status: "", metode: "" });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const fetchPembayaran = async () => {
     setIsTableLoading(true);
     try {
@@ -50,7 +53,19 @@ export default function PembayaranPage() {
   useEffect(() => { fetchPembayaran(); }, []);
 
   const filteredList = transaksiList.filter(
-    (item) => item.pasien?.nama?.toLowerCase().includes(searchQuery.toLowerCase()) || item.id.toLowerCase().includes(searchQuery.toLowerCase())
+    (item) =>
+      item.pasien?.nama
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      item.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Pagination
+  const totalPages = Math.ceil(filteredList.length / itemsPerPage);
+
+  const paginatedList = filteredList.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   // --- AKSI PEMBAYARAN ---
@@ -244,14 +259,16 @@ export default function PembayaranPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {isTableLoading ? (<tr><td colSpan={7} className="p-10 text-center">Memuat data...</td></tr>) : filteredList.length > 0 ? (
-              filteredList.map((item) => {
+              paginatedList.map((item) => {
                 const rujukan = item.rekamMedis?.rujukan ?? null;
                 return (
                   <tr key={item.id} className="hover:bg-blue-50 transition-colors text-center text-lg font-semibold">
                     <td className="px-4 py-3 font-bold w-[12%] text-primary">{item.id.split("-")[0].toUpperCase()}</td>
                     <td className="px-4 py-3 text-left w-[18%] capitalize">{item.pasien?.nama}</td>
                     <td className="px-4 py-3">Rp {item.jumlah.toLocaleString("id-ID")}</td>
-                    <td className="px-4 py-3 font-bold text-gray-500">{item.metode || "-"}</td>
+                    <td className="px-4 py-3 font-bold text-gray-500">
+                      {item.metode ? item.metode.replace("_", " ") : "-"}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`px-3 py-1 rounded-full text-sm font-bold ${item.status === "LUNAS" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
                         {item.status === "LUNAS" ? "LUNAS" : "BELUM BAYAR"}
@@ -293,7 +310,78 @@ export default function PembayaranPage() {
             ) : (<tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400 italic">Belum ada transaksi.</td></tr>)}
           </tbody>
         </table>
-      </div>
+        
+
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-4 border-t bg-gray-50">
+  <p className="text-sm text-gray-500 font-medium">
+    Menampilkan{" "}
+    <span className="font-bold text-primary">
+      {(currentPage - 1) * itemsPerPage + 1}
+    </span>
+    {" - "}
+    <span className="font-bold text-primary">
+      {Math.min(currentPage * itemsPerPage, filteredList.length)}
+    </span>
+    {" dari "}
+    <span className="font-bold text-primary">
+      {filteredList.length}
+    </span>{" "}
+    transaksi
+  </p>
+
+  <div className="flex items-center gap-2">
+    {/* PREV */}
+    <button
+      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+      disabled={currentPage === 1}
+      className="
+        h-10 px-4 rounded-xl border border-gray-200
+        bg-white text-gray-600 font-semibold
+        hover:bg-gray-100 transition-all
+        disabled:opacity-40 disabled:cursor-not-allowed
+      "
+    >
+      Prev
+    </button>
+
+    {/* PAGE NUMBER */}
+    {Array.from({ length: totalPages }, (_, i) => (
+      <button
+        key={i}
+        onClick={() => setCurrentPage(i + 1)}
+        className={`
+          h-10 w-10 rounded-xl font-bold transition-all
+          ${
+            currentPage === i + 1
+              ? "bg-primary text-white shadow-md scale-105"
+              : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
+          }
+        `}
+      >
+        {i + 1}
+      </button>
+    ))}
+
+    {/* NEXT */}
+    <button
+      onClick={() =>
+        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+      }
+      disabled={currentPage === totalPages}
+      className="
+        h-10 px-4 rounded-xl border border-gray-200
+        bg-white text-gray-600 font-semibold
+        hover:bg-gray-100 transition-all
+        disabled:opacity-40 disabled:cursor-not-allowed
+      "
+    >
+      Next
+    </button>
+  </div>
+</div>
+</div>
+      
+      
 
       {/* --- MODAL PROSES PEMBAYARAN --- */}
       {isBayarOpen && selectedBayar && (
@@ -444,7 +532,7 @@ export default function PembayaranPage() {
                 )}
               </div>
 
-              <div>
+              {/* <div>
                 <label className="text-xs font-bold text-gray-400 uppercase">
                   Poli Tujuan
                 </label>
@@ -464,7 +552,7 @@ export default function PembayaranPage() {
                     {selectedRujukan?.poliTujuan || rujukanForm.poliTujuan || "-"}
                   </div>
                 )}
-              </div>
+              </div> */}
 
               <div>
                 <label className="text-xs font-bold text-gray-400 uppercase">
