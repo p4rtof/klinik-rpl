@@ -12,30 +12,59 @@ export default function DashboardDokterPage() {
     total: 0,
     menunggu: 0,
     selesai: 0,
+    besok: 0, // Tambahan state buat ngitung pasien besok/nanti
   });
 
-  // FILTER / SORT / PAGINATION (FIGMA)
+  // FILTER / SORT / PAGINATION
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("default");
   const [page, setPage] = useState(1);
   const pageSize = 8;
 
-  const pasienSaatIni: any = antreanList.find(
-    (a: any) => a.status === "MENUNGGU",
-  );
+  // Dapatkan string tanggal lokal hari ini (Format YYYY-MM-DD)
+  const now = new Date();
+  const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+  const tanggalHariIniText = new Date().toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
       const resAntrean = await fetch("/api/antrian");
       const json = await resAntrean.json();
+
       if (json.success) {
-        setAntreanList(json.data);
+        const semuaData = json.data;
+
+        // Pisahkan data yang tanggalnya HARI INI dan BESOK/KEDEPAN
+        const dataHariIni = semuaData.filter((a: any) => {
+          const tglAntrean = a.tanggal
+            ? new Date(a.tanggal).toISOString().split("T")[0]
+            : "";
+          return tglAntrean === todayString;
+        });
+
+        const dataBesok = semuaData.filter((a: any) => {
+          const tglAntrean = a.tanggal
+            ? new Date(a.tanggal).toISOString().split("T")[0]
+            : "";
+          return tglAntrean > todayString;
+        });
+
+        setAntreanList(semuaData);
+
+        // Hitung ringkasan cuma dari data HARI INI (kecuali untuk info 'besok')
         setRingkasan({
-          total: json.data.length,
-          menunggu: json.data.filter((a: any) => a.status === "MENUNGGU")
+          total: dataHariIni.length,
+          menunggu: dataHariIni.filter((a: any) => a.status === "MENUNGGU")
             .length,
-          selesai: json.data.filter((a: any) => a.status === "SELESAI").length,
+          selesai: dataHariIni.filter((a: any) => a.status === "SELESAI")
+            .length,
+          besok: dataBesok.length, // Simpan jumlah pasien besok
         });
       }
     } catch (err) {
@@ -54,12 +83,6 @@ export default function DashboardDokterPage() {
     setPage(1);
   }, [search, sortBy]);
 
-  const tanggalHariIni = new Date().toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-
   // HITUNG USIA
   const hitungUsia = (tanggalLahir: string | undefined | null): number => {
     if (!tanggalLahir) return 0;
@@ -71,10 +94,18 @@ export default function DashboardDokterPage() {
     return usia;
   };
 
+  // Filter HANYA UNTUK HARI INI
   const filteredSorted = useMemo(() => {
     const q = search.trim().toLowerCase();
 
     const filtered = antreanList.filter((item: any) => {
+      // 1. FILTER TANGGAL: Pastikan hanya data HARI INI yang masuk tabel
+      const itemDate = item.tanggal
+        ? new Date(item.tanggal).toISOString().split("T")[0]
+        : "";
+      if (itemDate !== todayString) return false;
+
+      // 2. FILTER PENCARIAN
       const nama = (item.pasien?.nama || "").toLowerCase();
       const rm = (item.pasien?.noRm || "").toLowerCase();
       const keluhan = (item.keluhan || "").toLowerCase();
@@ -82,39 +113,34 @@ export default function DashboardDokterPage() {
     });
 
     const sorted = [...filtered].sort((a: any, b: any) => {
-      // DEFAULT: MENUNGGU DI ATAS
+      // DEFAULT: MENUNGGU DI ATAS, lalu urutkan antrean
       if (sortBy === "default") {
         if (a.status === "MENUNGGU" && b.status !== "MENUNGGU") return -1;
         if (a.status !== "MENUNGGU" && b.status === "MENUNGGU") return 1;
-
-        // optional: urut nomor antrean / RM setelah status
-        return (a.pasien?.noRm || "").localeCompare(b.pasien?.noRm || "");
+        return (a.nomorAntrian || 0) - (b.nomorAntrian || 0);
       }
-
-      if (sortBy === "rm") {
+      if (sortBy === "rm")
         return (a.pasien?.noRm || "").localeCompare(b.pasien?.noRm || "");
-      }
-
-      if (sortBy === "nama") {
+      if (sortBy === "nama")
         return (a.pasien?.nama || "").localeCompare(b.pasien?.nama || "");
-      }
-
-      if (sortBy === "usia") {
+      if (sortBy === "usia")
         return (
           hitungUsia(a.pasien?.tanggalLahir) -
           hitungUsia(b.pasien?.tanggalLahir)
         );
-      }
-
-      if (sortBy === "keluhan") {
+      if (sortBy === "keluhan")
         return (a.keluhan || "").localeCompare(b.keluhan || "");
-      }
 
       return 0;
     });
 
     return sorted;
-  }, [antreanList, search, sortBy]);
+  }, [antreanList, search, sortBy, todayString]);
+
+  // Pasien Saat Ini diambil dari tabel yang udah difilter (Pasti hari ini)
+  const pasienSaatIni = useMemo(() => {
+    return filteredSorted.find((a: any) => a.status === "MENUNGGU");
+  }, [filteredSorted]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSorted.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -148,24 +174,58 @@ export default function DashboardDokterPage() {
 
   return (
     <div className="w-full space-y-6 text-black">
-      <div className="px-2 mb-3">
-        <h1 className="text-3xl font-bold">Dashboard Pemeriksaan</h1>
-        <p className="text-gray-400 mt-1 text-lg">
-          Kelola antrean dan rekam medis pasien hari ini.
-        </p>
+      <div className="flex justify-between">
+        <div className="px-2 mb-3">
+          <h1 className="text-3xl font-bold">Dashboard Pemeriksaan</h1>
+          <p className="text-gray-400 mt-1 text-lg">
+            Kelola antrean dan rekam medis pasien hari ini.
+          </p>
+        </div>
+
+        {/* BANNER NOTIFIKASI PASIEN BESOK */}
+        {!isLoading && ringkasan.besok > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
+            <div className="bg-amber-200 p-2 rounded-lg">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 text-amber-700"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-amber-800 text-md">
+                Info Antrean Mendatang
+              </p>
+              <p className="text-xs font-semibold text-amber-700">
+                Terdapat{" "}
+                <span className="font-bold text-red-theme">
+                  {ringkasan.besok} pasien
+                </span>{" "}
+                yang sudah terdaftar untuk hari besok/kedepan.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Grid Kartu Atas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-2">
         {/* KARTU KIRI: Ringkasan Pasien */}
-        <div className="bg-white p-6 border shadow-sm border-gray-100 rounded-xl space-y-4">
+        <div className="bg-white p-6 border shadow-sm border-gray-100 rounded-xl space-y-4 relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xl font-bold">Ringkasan Pasien Hari Ini</p>
               <p className="text-sm text-gray-400">Data pasien Anda hari ini</p>
             </div>
             <div className="bg-primary/10 text-primary px-4 py-2 rounded-xl text-lg font-bold">
-              {tanggalHariIni}
+              {tanggalHariIniText}
             </div>
           </div>
 
@@ -196,14 +256,14 @@ export default function DashboardDokterPage() {
           <div>
             <p className="text-xl font-bold">Pasien Saat Ini</p>
             <p className="text-sm text-gray-400">
-              Pasien urutan teratas yang menunggu
+              Pasien urutan teratas yang menunggu (Hari Ini)
             </p>
           </div>
 
           {isLoading ? (
             <div className="h-20 mt-2 bg-gray-50 animate-pulse rounded-2xl"></div>
           ) : pasienSaatIni ? (
-            <div className="flex items-center justify-between bg-gray-50 p-4 mt-4 rounded-2xl">
+            <div className="flex items-center justify-between bg-gray-50 p-4 mt-4 rounded-2xl border border-gray-100">
               <div>
                 <p className="text-xl font-bold text-primary capitalize">
                   {pasienSaatIni.pasien?.nama}
@@ -228,18 +288,16 @@ export default function DashboardDokterPage() {
               </div>
             </div>
           ) : (
-            <div className="text-center py-4 mt-4 bg-gray-50 rounded-2xl italic text-gray-400">
-              Tidak ada pasien dalam antrean menunggu.
+            <div className="text-center py-4 mt-4 bg-gray-50 rounded-2xl border border-gray-100 italic text-gray-400 font-medium">
+              Tidak ada pasien yang menunggu untuk diperiksa hari ini.
             </div>
           )}
         </div>
       </div>
 
-      {/* Title + Filter bar (FIGMA) */}
+      {/* Title + Filter bar */}
       <div className="flex items-center justify-between px-2">
-        <h2 className="text-2xl font-bold">
-          Pasien Anda yang sedang mengantri
-        </h2>
+        <h2 className="text-2xl font-bold">Daftar Antrean Anda Hari Ini</h2>
 
         <div className="flex gap-3 items-center">
           <select
@@ -258,8 +316,8 @@ export default function DashboardDokterPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari Pasien ..."
-              className="border border-gray-200 rounded-lg pl-10 pr-3 py-2 text-sm w-64"
+              placeholder="Cari Pasien HARI INI..."
+              className="border border-gray-200 rounded-lg pl-10 pr-3 py-2 text-sm w-64 focus:border-primary outline-none"
             />
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
               <img src="/componen-admin/cari.svg" alt="cari" />
@@ -319,27 +377,22 @@ export default function DashboardDokterPage() {
                   <td className="text-center w-fit text-lg font-bold text-primary">
                     {item.pasien?.noRm}
                   </td>
-
                   <td className="">
                     <p className="text-lg px-2 text-black capitalize my-4">
                       {item.pasien?.nama}
                     </p>
                   </td>
-
                   <td className="text-lg text-black text-center font-bold">
                     {item.pasien?.jenisKelamin === "LAKI_LAKI"
                       ? "Laki-laki"
                       : "Perempuan"}
                   </td>
-
                   <td className="text-center">
                     {item.pasien?.tanggalLahir
                       ? `${hitungUsia(item.pasien.tanggalLahir)} Tahun`
                       : "-"}
                   </td>
-
                   <td className="text-left my-3 pl-2">{item.keluhan || "-"}</td>
-
                   <td className="text-center my-3">
                     <span
                       className={`px-4 py-1.5 rounded-full text-sm uppercase font-black ${
@@ -351,7 +404,6 @@ export default function DashboardDokterPage() {
                       {item.status}
                     </span>
                   </td>
-
                   <td className="">
                     <div className="flex justify-center gap-2 items-center">
                       <Link
@@ -393,14 +445,14 @@ export default function DashboardDokterPage() {
                   colSpan={7}
                   className="p-10 text-gray-400 text-center italic"
                 >
-                  Data tidak ditemukan.
+                  Data antrean hari ini tidak ditemukan.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
 
-        {/* Pagination (FIGMA) */}
+        {/* Pagination */}
         {!isLoading && filteredSorted.length > 0 && (
           <div className="flex justify-center items-center gap-2 py-4">
             <button
@@ -410,9 +462,7 @@ export default function DashboardDokterPage() {
             >
               &lt;
             </button>
-
             {renderPageButtons()}
-
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={safePage === totalPages}
@@ -437,7 +487,7 @@ function StatCard({
   isLoading,
 }: any) {
   return (
-    <div className="flex-1 bg-white p-4 rounded-2xl border border-gray-50 flex items-center gap-4">
+    <div className="flex-1 bg-white px-2 py-3 rounded-2xl border border-gray-50 flex items-center gap-4">
       <div
         className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center shrink-0`}
       >

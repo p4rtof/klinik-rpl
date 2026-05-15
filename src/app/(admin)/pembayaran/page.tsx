@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 export default function PembayaranPage() {
   const [transaksiList, setTransaksiList] = useState<any[]>([]);
@@ -28,8 +28,17 @@ export default function PembayaranPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editData, setEditData] = useState({ id: "", status: "", metode: "" });
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  // Modal Konfirmasi & Notifikasi
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [showNotifModal, setShowNotifModal] = useState(false);
+  const [notifData, setNotifData] = useState<{ type: "success" | "error"; message: string }>({ type: "success", message: "" });
+
+  const showNotif = (type: "success" | "error", message: string) => {
+    setNotifData({ type, message });
+    setShowNotifModal(true);
+  };
 
   const fetchPembayaran = async () => {
     setIsTableLoading(true);
@@ -60,31 +69,71 @@ export default function PembayaranPage() {
       item.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Pagination
-  const totalPages = Math.ceil(filteredList.length / itemsPerPage);
+  // ==========================================
+  // STATE & LOGIKA PAGINATION (Sama seperti Data Pasien)
+  // ==========================================
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
-  const paginatedList = filteredList.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+
+  const paginatedList = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredList.slice(start, start + pageSize);
+  }, [filteredList, safePage]);
+
+  const renderPageButtons = () => {
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 9);
+    return pages.map((p) => (
+      <button
+        key={p}
+        onClick={() => setPage(p)}
+        className={`px-3 py-1 rounded-md font-bold ${
+          p === safePage
+            ? "bg-primary text-white"
+            : "text-primary hover:bg-blue-50"
+        }`}
+      >
+        {p}
+      </button>
+    ));
+  };
+  // ==========================================
 
   // --- AKSI PEMBAYARAN ---
-  const handleHapus = async (id: string) => {
-    if (!confirm("Yakin ingin menghapus data pembayaran ini?")) return;
+  const confirmHapus = (id: string) => {
+    setDeleteTargetId(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleHapus = async () => {
+    if (!deleteTargetId) return;
     try {
-      const res = await fetch(`/api/pembayaran/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/pembayaran/${deleteTargetId}`, { method: "DELETE" });
       if (res.ok) fetchPembayaran();
-    } catch (err) { alert("Terjadi kesalahan."); }
+      else showNotif("error", "Gagal menghapus data pembayaran.");
+    } catch (err) {
+      showNotif("error", "Terjadi kesalahan.");
+    } finally {
+      setShowDeleteModal(false);
+      setDeleteTargetId(null);
+    }
   };
 
   const submitPembayaran = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!metodeBayar) {
-      alert("Silakan pilih metode pembayaran (Cash / Debit) terlebih dahulu!"); 
+      showNotif("error", "Silakan pilih metode pembayaran (Tunai / Debit) terlebih dahulu!");
+      
       return;
     }
     if (metodeBayar === "TRANSFER" && !bankTerpilih) {
-      alert("Pilih rekening tujuan terlebih dahulu!"); 
+      showNotif("error","Pilih rekening tujuan terlebih dahulu!"); 
       return;
     }
 
@@ -103,14 +152,16 @@ export default function PembayaranPage() {
         setBankTerpilih("");
         fetchPembayaran();
         
-        // OTOMATIS CETAK setelah terima dana
         cetakStruk(paymentId);
       } else {
         const errJson = await res.json();
-        alert("Gagal memproses pembayaran: " + (errJson.error || "Unknown error"));
+        showNotif("error", "Gagal memproses pembayaran: " + (errJson.error || "Unknown error"));
       }
-    } catch (err) { alert("Terjadi kesalahan koneksi saat memproses pembayaran"); }
-    finally { setIsBayarSaving(false); }
+    } catch (err) { 
+      showNotif("error", "Terjadi kesalahan koneksi saat memproses pembayaran.");
+    } finally { 
+      setIsBayarSaving(false); 
+    }
   };
 
   const openDetailModal = (item: any) => {
@@ -138,9 +189,11 @@ export default function PembayaranPage() {
       if (res.ok) {
         setIsEditOpen(false);
         fetchPembayaran();
-        alert("Transaksi berhasil diperbarui!");
+        showNotif("success", "Transaksi berhasil diperbarui!");
       }
-    } catch (err) { alert("Terjadi kesalahan saat update transaksi."); }
+    } catch (err) { 
+      showNotif("error", "Terjadi kesalahan saat update transaksi.");
+    }
   };
 
   const cetakStruk = (id: string) => {
@@ -152,9 +205,8 @@ export default function PembayaranPage() {
     const rujukan = rm.rujukan;
     setSelectedRujukan(rujukan);
     
-    // Auto-fill dari data dokter
     const diagnosaDokter = rm.diagnosis?.map((d: any) => d.diagnosis).join(", ") || "";
-    const catatanDokter = rm.catatanTambahan || ""; // Menggunakan catatanTambahan sesuai schema
+    const catatanDokter = rm.catatanTambahan || "";
     
     setRujukanForm({ 
       tujuan: rujukan?.tujuan ?? "", 
@@ -168,6 +220,7 @@ export default function PembayaranPage() {
     setIsRujukanEditing(false); 
     setIsRujukanOpen(true);
   };
+
   const saveRujukan = async () => {
     setIsRujukanSaving(true);
     try {
@@ -178,15 +231,22 @@ export default function PembayaranPage() {
       });
       if (res.ok) {
         setIsRujukanEditing(false);
-        fetchPembayaran(); // Refresh data
-        alert("Rujukan berhasil disimpan!");
+        fetchPembayaran(); 
+        showNotif("success", "Rujukan berhasil disimpan!");
       }
-    } catch (err) { alert("Gagal menyimpan rujukan"); }
-    finally { setIsRujukanSaving(false); }
+    } catch (err) { 
+      showNotif("error", "Gagal menyimpan rujukan.");
+    } finally { 
+      setIsRujukanSaving(false); 
+    }
   };
 
   const finalizeRujukan = async () => {
-    if (!confirm("Setelah difinalisasi, rujukan tidak dapat diedit lagi. Lanjutkan?")) return;
+    setShowFinalizeModal(true);
+  };
+
+  const doFinalizeRujukan = async () => {
+    setShowFinalizeModal(false);
     setIsRujukanSaving(true);
     try {
       const res = await fetch(`/api/rujukan/${selectedRujukan.id}/finalize`, {
@@ -197,10 +257,13 @@ export default function PembayaranPage() {
       if (res.ok) {
         setIsRujukanOpen(false);
         fetchPembayaran();
-        alert("Rujukan berhasil difinalisasi!");
+        showNotif("success", "Rujukan berhasil difinalisasi!");
       }
-    } catch (err) { alert("Gagal memfinalisasi rujukan"); }
-    finally { setIsRujukanSaving(false); }
+    } catch (err) {
+      showNotif("error", "Gagal memfinalisasi rujukan.");
+    } finally {
+      setIsRujukanSaving(false);
+    }
   };
 
   const cetakRujukan = () => { window.open(`/rujukan/print/${selectedRujukan.id}`, "_blank"); };
@@ -280,7 +343,6 @@ export default function PembayaranPage() {
                       ) : <span className="text-gray-400">-</span>}
                     </td>
 
-                    {/* ✅ KOLOM AKSI DIPERBAIKI (TIDAK BERANTAKAN) */}
                     <td className="px-4 py-3 flex justify-center items-center gap-2">
                       <button onClick={() => openDetailModal(item)} className="p-2 bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200 flex items-center" title="Detail Transaksi">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -300,7 +362,7 @@ export default function PembayaranPage() {
                         </button>
                       )}
 
-                      <button onClick={() => handleHapus(item.id)} className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 flex items-center" title="Hapus Data">
+                      <button onClick={() => confirmHapus(item.id)} className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 flex items-center" title="Hapus Data">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
                       </button>
                     </td>
@@ -310,78 +372,28 @@ export default function PembayaranPage() {
             ) : (<tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400 italic">Belum ada transaksi.</td></tr>)}
           </tbody>
         </table>
-        
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-4 border-t bg-gray-50">
-  <p className="text-sm text-gray-500 font-medium">
-    Menampilkan{" "}
-    <span className="font-bold text-primary">
-      {(currentPage - 1) * itemsPerPage + 1}
-    </span>
-    {" - "}
-    <span className="font-bold text-primary">
-      {Math.min(currentPage * itemsPerPage, filteredList.length)}
-    </span>
-    {" dari "}
-    <span className="font-bold text-primary">
-      {filteredList.length}
-    </span>{" "}
-    transaksi
-  </p>
-
-  <div className="flex items-center gap-2">
-    {/* PREV */}
-    <button
-      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-      disabled={currentPage === 1}
-      className="
-        h-10 px-4 rounded-xl border border-gray-200
-        bg-white text-gray-600 font-semibold
-        hover:bg-gray-100 transition-all
-        disabled:opacity-40 disabled:cursor-not-allowed
-      "
-    >
-      Prev
-    </button>
-
-    {/* PAGE NUMBER */}
-    {Array.from({ length: totalPages }, (_, i) => (
-      <button
-        key={i}
-        onClick={() => setCurrentPage(i + 1)}
-        className={`
-          h-10 w-10 rounded-xl font-bold transition-all
-          ${
-            currentPage === i + 1
-              ? "bg-primary text-white shadow-md scale-105"
-              : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
-          }
-        `}
-      >
-        {i + 1}
-      </button>
-    ))}
-
-    {/* NEXT */}
-    <button
-      onClick={() =>
-        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-      }
-      disabled={currentPage === totalPages}
-      className="
-        h-10 px-4 rounded-xl border border-gray-200
-        bg-white text-gray-600 font-semibold
-        hover:bg-gray-100 transition-all
-        disabled:opacity-40 disabled:cursor-not-allowed
-      "
-    >
-      Next
-    </button>
-  </div>
-</div>
-</div>
-      
-      
+        {/* PAGINATION UI SAMA PERSIS DENGAN DATA PASIEN */}
+        {!isTableLoading && filteredList.length > 0 && (
+          <div className="flex justify-center items-center gap-2 py-4 border-t border-gray-100">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="px-2 py-1 text-primary font-bold disabled:opacity-30"
+            >
+              &lt;
+            </button>
+            {renderPageButtons()}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="px-2 py-1 text-primary font-bold disabled:opacity-30"
+            >
+              &gt;
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* --- MODAL PROSES PEMBAYARAN --- */}
       {isBayarOpen && selectedBayar && (
@@ -398,7 +410,7 @@ export default function PembayaranPage() {
               <div>
                 <label className="text-sm font-bold text-gray-600 mb-2 block">Pilih Metode Pembayaran</label>
                 <div className="grid grid-cols-2 gap-3">
-                  <button type="button" onClick={() => setMetodeBayar("TUNAI")} className={`py-3 rounded-xl font-bold border-2 transition-all ${metodeBayar === "TUNAI" ? "bg-primary/10 border-primary text-primary" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>💵 Cash</button>
+                  <button type="button" onClick={() => setMetodeBayar("TUNAI")} className={`py-3 rounded-xl font-bold border-2 transition-all ${metodeBayar === "TUNAI" ? "bg-primary/10 border-primary text-primary" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>💵 Tunai</button>
                   <button type="button" onClick={() => setMetodeBayar("TRANSFER")} className={`py-3 rounded-xl font-bold border-2 transition-all ${metodeBayar === "TRANSFER" ? "bg-primary/10 border-primary text-primary" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>💳 Debit/Transfer</button>
                 </div>
               </div>
@@ -464,7 +476,7 @@ export default function PembayaranPage() {
                 <label className="text-xs font-bold text-gray-400 uppercase">Metode Pembayaran</label>
                 <select value={editData.metode} onChange={(e) => setEditData({ ...editData, metode: e.target.value })} className="w-full border-2 border-gray-200 p-3 rounded-xl outline-none mt-1 focus:border-yellow-500 font-bold text-gray-700">
                   <option value="">-- Belum Dipilih --</option>
-                  <option value="TUNAI">TUNAI / CASH</option>
+                  <option value="TUNAI">TUNAI</option>
                   <option value="TRANSFER_BCA">TRANSFER BCA</option>
                   <option value="TRANSFER_MANDIRI">TRANSFER MANDIRI</option>
                   <option value="TRANSFER_BRI">TRANSFER BRI</option>
@@ -531,28 +543,6 @@ export default function PembayaranPage() {
                   </div>
                 )}
               </div>
-
-              {/* <div>
-                <label className="text-xs font-bold text-gray-400 uppercase">
-                  Poli Tujuan
-                </label>
-                {isRujukanEditing ? (
-                  <input
-                    value={rujukanForm.poliTujuan}
-                    onChange={(e) =>
-                      setRujukanForm({
-                        ...rujukanForm,
-                        poliTujuan: e.target.value,
-                      })
-                    }
-                    className="w-full border-2 border-gray-100 p-3 rounded-xl outline-none font-semibold focus:border-primary"
-                  />
-                ) : (
-                  <div className="w-full border-2 border-gray-50 p-3 rounded-xl bg-gray-50 font-semibold">
-                    {selectedRujukan?.poliTujuan || rujukanForm.poliTujuan || "-"}
-                  </div>
-                )}
-              </div> */}
 
               <div>
                 <label className="text-xs font-bold text-gray-400 uppercase">
@@ -646,6 +636,74 @@ export default function PembayaranPage() {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KONFIRMASI HAPUS */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="p-8 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-black text-gray-800 mb-2">Hapus Transaksi?</h2>
+              <p className="text-gray-500 font-medium mb-6">Data pembayaran ini akan dihapus permanen dan tidak bisa dikembalikan.</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => { setShowDeleteModal(false); setDeleteTargetId(null); }} className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors">Batal</button>
+                <button onClick={handleHapus} className="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold hover:bg-red-600 transition-colors active:scale-95">Ya, Hapus</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KONFIRMASI FINALISASI */}
+      {showFinalizeModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="p-8 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-black text-gray-800 mb-2">Finalisasi Rujukan?</h2>
+              <p className="text-gray-500 font-medium mb-6">Setelah difinalisasi, rujukan <span className="font-bold text-gray-700">tidak dapat diedit lagi</span>. Pastikan semua data sudah benar.</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setShowFinalizeModal(false)} className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors">Batal</button>
+                <button onClick={doFinalizeRujukan} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-colors active:scale-95">Ya, Finalisasi</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL NOTIFIKASI */}
+      {showNotifModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="p-8 flex flex-col items-center text-center">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${notifData.type === "success" ? "bg-green-100" : "bg-red-100"}`}>
+                {notifData.type === "success" ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </div>
+              <h2 className={`text-2xl font-black mb-2 ${notifData.type === "success" ? "text-green-700" : "text-red-700"}`}>
+                {notifData.type === "success" ? "Berhasil!" : "Gagal!"}
+              </h2>
+              <p className="text-gray-500 font-medium mb-6">{notifData.message}</p>
+              <button onClick={() => setShowNotifModal(false)} className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors">Tutup</button>
             </div>
           </div>
         </div>

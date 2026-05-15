@@ -32,6 +32,9 @@ export default function DashboardPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedKunjungan, setSelectedKunjungan] = useState<any>(null);
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({
     id: "",
@@ -44,7 +47,7 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("default");
   const [page, setPage] = useState(1);
-  const pageSize = 8;
+  const pageSize = 10;
 
   // State Form Kunjungan
   const [formData, setFormData] = useState({
@@ -101,7 +104,9 @@ export default function DashboardPage() {
         // Filter yang menunggu, lalu urutkan dari nomor terkecil
         const next = dataHariIni
           .filter((a: any) => a.status === "MENUNGGU")
-          .sort((a: any, b: any) => (a.nomorAntrian || 0) - (b.nomorAntrian || 0))[0];
+          .sort(
+            (a: any, b: any) => (a.nomorAntrian || 0) - (b.nomorAntrian || 0),
+          )[0];
 
         if (next) {
           setAntreanNext({
@@ -272,14 +277,24 @@ export default function DashboardPage() {
     }
   };
 
-  const handleHapusKunjungan = async (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus kunjungan ini?")) return;
+  const confirmHapus = (id: string) => {
+    setDeleteTargetId(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleHapusKunjungan = async () => {
+    if (!deleteTargetId) return;
     try {
-      const res = await fetch(`/api/antrian/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/antrian/${deleteTargetId}`, {
+        method: "DELETE",
+      });
       if (res.ok) fetchData();
       else alert("Gagal menghapus kunjungan.");
     } catch (err) {
       alert("Terjadi kesalahan saat menghapus.");
+    } finally {
+      setShowDeleteModal(false);
+      setDeleteTargetId(null);
     }
   };
 
@@ -546,7 +561,7 @@ export default function DashboardPage() {
                         </svg>
                       </button>
                       <button
-                        onClick={() => handleHapusKunjungan(item.id)}
+                        onClick={() => confirmHapus(item.id)}
                         className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
                       >
                         <svg
@@ -578,7 +593,7 @@ export default function DashboardPage() {
           </tbody>
         </table>
         {!isTableLoading && filteredSorted.length > 0 && (
-          <div className="flex justify-center items-center gap-2 py-4">
+          <div className="flex justify-center items-center gap-2 py-4 border-t border-gray-100">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={safePage === 1}
@@ -636,6 +651,9 @@ export default function DashboardPage() {
                     +
                   </Link>
                 </div>
+                <p className="text-xs font-medium text-orange-600 italic mt-2 bg-orange-50 p-2 rounded-lg border border-orange-100">
+                  * Pasien belum terdaftar? Silahkan daftar pasien baru terlebih dahulu melalui tombol (+)
+                </p>
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-400 uppercase">
@@ -848,6 +866,61 @@ export default function DashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KONFIRMASI HAPUS */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in">
+            <div className="p-8 flex flex-col items-center text-center">
+              {/* Icon */}
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-8 w-8 text-red-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </div>
+
+              <h2 className="text-2xl font-black text-gray-800 mb-2">
+                Hapus Kunjungan?
+              </h2>
+              <p className="text-gray-500 font-medium mb-6">
+                Data kunjungan ini akan dihapus permanen dan tidak bisa
+                dikembalikan.
+              </p>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteTargetId(null);
+                  }}
+                  className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHapusKunjungan}
+                  className="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold hover:bg-red-600 transition-colors active:scale-95"
+                >
+                  Ya, Hapus
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
