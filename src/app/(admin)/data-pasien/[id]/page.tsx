@@ -124,7 +124,7 @@ export default function DetailPasienPage() {
                 <tr className="text-gray-400 text-sm border-b border-gray-50 uppercase font-black">
                   <th className="pb-4">Tanggal</th>
                   <th className="pb-4">Diagnosis</th>
-                  <th className="pb-4 text-center">Tindakan</th>
+                  <th className="pb-4 ">Tindakan</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -134,11 +134,11 @@ export default function DetailPasienPage() {
                       {new Date(item.createdAt).toLocaleDateString("id-ID")}
                     </td>
                     <td className="py-4">
-                      <p className="font-bold text-red-500 uppercase text-xs">
-                        {item.diagnosis?.[0]?.deskripsi || "Diagnosis Umum"}
+                      <p className="font-bold text-red-500  text-md">
+                        {item.diagnosis?.[0]?.diagnosis || "Diagnosis Umum"}
                       </p>
                     </td>
-                    <td className="py-4 text-center font-bold text-primary">
+                    <td className="py-4 text-left font-bold text-primary">
                       {item.tindakan || "-"}
                     </td>
                   </tr>

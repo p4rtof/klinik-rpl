@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -9,7 +9,7 @@ export default function DataPasienPage() {
   const [pasienList, setPasienList] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isTableLoading, setIsTableLoading] = useState(true); // Tambah ini
+  const [isTableLoading, setIsTableLoading] = useState(true);
 
   // State untuk Search dan Sort
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,6 +19,45 @@ export default function DataPasienPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [isEdit, setIsEdit] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+
+  // ==========================================
+  // STATE & LOGIKA PAGINATION
+  // ==========================================
+  const [page, setPage] = useState(1);
+  const pageSize = 10; // Menampilkan 8 baris per halaman
+
+  // Kembalikan ke halaman 1 setiap kali user ngetik pencarian atau ngubah sorting
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(pasienList.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+
+  // Potong data pasien sesuai halaman aktif
+  const pagedData = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return pasienList.slice(start, start + pageSize);
+  }, [pasienList, safePage]);
+
+  // Render tombol angka 1, 2, 3, dst.
+  const renderPageButtons = () => {
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 9);
+    return pages.map((p) => (
+      <button
+        key={p}
+        onClick={() => setPage(p)}
+        className={`px-3 py-1 rounded-md font-bold ${
+          p === safePage
+            ? "bg-primary text-white"
+            : "text-primary hover:bg-blue-50"
+        }`}
+      >
+        {p}
+      </button>
+    ));
+  };
+  // ==========================================
 
   // State Form
   const [formData, setFormData] = useState({
@@ -31,9 +70,9 @@ export default function DataPasienPage() {
 
   // Fetch API dengan parameter Search
   const fetchPasien = async () => {
-    setIsTableLoading(true); // Mulai loading
+    setIsTableLoading(true);
     try {
-      const res = await fetch(`/api/pasien?search=${searchTerm}`, {
+      const res = await fetch(`/api/pasien?search=${searchTerm}&sortBy=${sortBy}`, {
         headers: { "x-user-role": "ADMIN" },
       });
       const json = await res.json();
@@ -41,7 +80,7 @@ export default function DataPasienPage() {
     } catch (err) {
       console.error("Gagal ambil data");
     } finally {
-      setIsTableLoading(false); // Selesai loading
+      setIsTableLoading(false);
     }
   };
 
@@ -191,12 +230,12 @@ export default function DataPasienPage() {
         <table className="w-full text-left border-collapse">
           <thead className="bg-primary text-white text-center">
             <tr>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">ID Pasien</th>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Nama Lengkap</th>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Tanggal Lahir</th>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Jenis Kelamin</th>
-              <th className="px-4 py-3 border-r border-white/20 uppercase text-lg">Nomor Telepon</th>
-              <th className="px-4 py-3 uppercase text-lg text-center">Aksi</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-xl">ID Pasien</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-xl">Nama Lengkap</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-xl">Tanggal Lahir</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-xl">Jenis Kelamin</th>
+              <th className="px-4 py-3 border-r border-white/20 uppercase text-xl">Nomor Telepon</th>
+              <th className="px-4 py-3 uppercase text-xl text-center">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-center font-semibold">
@@ -212,8 +251,9 @@ export default function DataPasienPage() {
                   <td className="p-4"><div className="h-8 bg-gray-100 rounded w-32 mx-auto"></div></td>
                 </tr>
               ))
-            ) : pasienList.length > 0 ? (
-              pasienList.map((pasien: any) => (
+            ) : pagedData.length > 0 ? (
+              // MAP DATA PAKAI pagedData BUKAN pasienList
+              pagedData.map((pasien: any) => (
                 <tr key={pasien.id} className="hover:bg-blue-50/50 transition-colors text-lg">
                   <td className="px-4 py-2.5 text-primary font-bold">{pasien.id || "-"}</td>
                   <td className="px-4 py-2.5 text-left capitalize">{pasien.nama}</td>
@@ -244,9 +284,32 @@ export default function DataPasienPage() {
             )}
           </tbody>
         </table>
+
+        {/* ========================================== */}
+        {/* COMPONENT PAGINATION DI BAWAH TABEL */}
+        {/* ========================================== */}
+        {!isTableLoading && pasienList.length > 0 && (
+          <div className="flex justify-center items-center gap-2 py-4 border-t border-gray-100">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="px-2 py-1 text-primary font-bold disabled:opacity-30"
+            >
+              &lt;
+            </button>
+            {renderPageButtons()}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="px-2 py-1 text-primary font-bold disabled:opacity-30"
+            >
+              &gt;
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* MODAL FORM & DELETE PERSIS SAMA */}
+      {/* MODAL FORM */}
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -276,6 +339,7 @@ export default function DataPasienPage() {
         </div>
       )}
 
+      {/* MODAL DELETE */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-center animate-in zoom-in duration-200">
           <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full">

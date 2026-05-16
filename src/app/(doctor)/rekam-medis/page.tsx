@@ -134,7 +134,7 @@ export default function RiwayatPasienPage() {
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Diagnosis</p>
                       <p className="font-extrabold text-gray-800 text-lg">
                         {Array.isArray(h.diagnosis) && h.diagnosis.length > 0
-                          ? h.diagnosis.map((d: any) => d.deskripsi).join(", ")
+                          ? h.diagnosis.map((d: any) => d.diagnosis).join(", ")
                           : "Tidak ada catatan diagnosis"}
                       </p>
                     </div>
@@ -157,7 +157,7 @@ export default function RiwayatPasienPage() {
                           <ul className="list-disc ml-4 font-medium">
                             {h.resep.map((r: any) => (
                               <li key={r.id}>
-                                <span className="font-bold">{r.namaObat}</span> {r.dosis ? `- ${r.dosis}` : ""} <span className="italic text-blue-700">({r.aturanPakai})</span>
+                                <span className="font-bold">{r.obatId}</span> {r.dosis ? `- ${r.dosis}` : ""} <span className="italic text-blue-700">({r.aturan})</span>
                               </li>
                             ))}
                           </ul>

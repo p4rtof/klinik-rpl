@@ -23,12 +23,12 @@ export async function GET(request: Request) {
         ...(status ? { status } : {}),
       },
       include: {
-        pasien: { select: { noRm: true, nama: true } },
-
-        // >>> tambahan: ikutkan rekamMedis + rujukan
+        pasien: { select: { id: true, noRm: true, nama: true } },
         rekamMedis: {
           select: {
             id: true,
+            diagnosis: true,
+            catatanTambahan: true,
             rujukan: {
               select: {
                 id: true,
@@ -41,7 +41,6 @@ export async function GET(request: Request) {
                 status: true,
                 nomorSurat: true,
                 updatedAt: true,
-                
               },
             },
           },
@@ -61,12 +60,11 @@ export async function GET(request: Request) {
 }
 
 // POST /api/pembayaran
-// Body: { pasienId, rekamMedisId?, jumlah, metode }
-// status default = "BELUM_BAYAR"
 export async function POST(request: Request) {
   try {
     const role = request.headers.get("x-user-role");
-    if (role !== "ADMIN") {
+    // DOKTER juga diizinkan membuat tagihan (otomatis dari periksa/page.tsx)
+    if (role !== "ADMIN" && role !== "DOKTER") {
       return NextResponse.json(
         { success: false, error: "Forbidden" },
         { status: 403 }
@@ -80,8 +78,7 @@ export async function POST(request: Request) {
         {
           success: false,
           error: "Data tidak valid",
-          // FIX Zod: bukan .errors, tapi .issues
-          details: parseResult.error.issues,
+          details: parseResult.error.format(),
         },
         { status: 400 }
       );
@@ -90,10 +87,12 @@ export async function POST(request: Request) {
     const newPembayaran = await prisma.pembayaran.create({
       data: parseResult.data,
       include: {
-        pasien: { select: { noRm: true, nama: true } },
+        pasien: { select: { id: true, noRm: true, nama: true } },
         rekamMedis: {
           select: {
             id: true,
+            diagnosis: true,
+            catatanTambahan: true,
             rujukan: {
               select: {
                 id: true,
@@ -106,7 +105,6 @@ export async function POST(request: Request) {
                 status: true,
                 nomorSurat: true,
                 updatedAt: true,
-    
               },
             },
           },
