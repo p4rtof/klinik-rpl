@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import PrintToolbar from "./PrintToolbar";
 
@@ -31,6 +32,23 @@ export default async function PrintStrukPage({
 }) {
   const { id } = await params;
 
+  // --- AMBIL DATA TINDAKAN MEDIS DARI BACKEND API ---
+  const headersList = await headers();
+  const host = headersList.get("host") || "localhost:3000";
+  const protocol = host.includes("localhost") ? "http" : "https";
+  
+  let pilihanTindakanFromBackend: any[] = [];
+  try {
+    const res = await fetch(`${protocol}://${host}/api/tindakan-medis`, {
+      cache: "no-store"
+    });
+    const json = await res.json();
+    if (json.success) pilihanTindakanFromBackend = json.data;
+  } catch (e) {
+    console.error("Gagal mengambil data tindakan medis dari backend:", e);
+  }
+  // --------------------------------------------------
+
   const pembayaran = await prisma.pembayaran.findUnique({
     where: { id },
     include: {
@@ -51,6 +69,9 @@ export default async function PrintStrukPage({
   const rekamMedis: any = pembayaran.rekamMedis;
   const dokter = rekamMedis?.dokter;
   const umur = pasien.tanggalLahir ? hitungUmur(pasien.tanggalLahir) : "";
+
+  // Pecah teks tindakan koma (,) menjadi list array
+  const tindakanArray = rekamMedis?.tindakan ? rekamMedis.tindakan.split(", ") : [];
 
   let infoRekening = "CASH / TUNAI";
   if (pembayaran.metode === "TRANSFER_BCA") infoRekening = "Transfer BCA (1234567890 a.n Klinik RPL)";
@@ -142,9 +163,24 @@ export default async function PrintStrukPage({
 
           <div className="mb-4">
             <div className="font-bold text-[13px] mb-1">Tindakan Medis:</div>
-            <div className="text-[12.5px] font-semibold">
-              {rekamMedis?.tindakan || "-"}
-            </div>
+            {tindakanArray.length > 0 ? (
+              <ul className="pl-4 m-0 space-y-1 w-[80%]" style={{ fontSize: "12.5px" }}>
+                {tindakanArray.map((tindakan: string, i: number) => {
+                  // Mencocokkan teks tindakan dengan list harga dari backend API
+                  const dataTindakan = pilihanTindakanFromBackend.find(pt => pt.label === tindakan);
+                  return (
+                    <li key={i} className="flex justify-between border-b border-gray-100 pb-1">
+                      <span>{tindakan}</span>
+                      <span className="font-semibold">
+                        {dataTindakan ? `Rp ${dataTindakan.harga.toLocaleString('id-ID')}` : "-"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="text-[12.5px] italic text-gray-500">- Tidak ada tindakan.</div>
+            )}
           </div>
 
           <div>
