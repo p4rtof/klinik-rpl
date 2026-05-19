@@ -31,14 +31,14 @@ export async function GET(request: Request) {
       };
     }
 
-    let orderBy: any = { id: "asc" };
+    let orderBy: any = { id: "desc" };
     if (sortBy === "nama") {
       orderBy = { nama: "asc" };
     } else if (sortBy === "tanggalLahir") {
       // Usia ASC = Tanggal Lahir DESC (paling muda dulu)
       orderBy = { tanggalLahir: "desc" };
     } else if (sortBy === "id") {
-      orderBy = { id: "asc" };
+      orderBy = { id: "desc" };
     }
 
     const pasien = await prisma.pasien.findMany({

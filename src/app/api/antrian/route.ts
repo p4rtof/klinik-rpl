@@ -27,7 +27,15 @@ export async function GET(request: Request) {
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(targetDate);
       endOfDay.setHours(23, 59, 59, 999);
-      dateFilter = { tanggal: { gte: startOfDay, lte: endOfDay } };
+      dateFilter = {
+        OR: [
+          { tanggal: { gte: startOfDay, lte: endOfDay } },
+          { 
+            tanggal: { lt: startOfDay },
+            status: "MENUNGGU" 
+          }
+        ]
+      };
     } else if (tanggalMulai && tanggalAkhir) {
       const start = new Date(tanggalMulai);
       start.setHours(0, 0, 0, 0);
