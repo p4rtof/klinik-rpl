@@ -20,6 +20,8 @@ export default function DataPasienPage() {
   const [isEdit, setIsEdit] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
+  const [notif, setNotif] = useState<string | null>(null);
+
   // ==========================================
   // STATE & LOGIKA PAGINATION
   // ==========================================
@@ -172,6 +174,8 @@ export default function DataPasienPage() {
       if (res.ok && json.success) {
         setShowForm(false);
         fetchPasien();
+        setNotif(isEdit ? "Mantap! Data pasien berhasil diperbarui." : "Berhasil! Pasien baru sukses ditambahkan.");
+        setTimeout(() => setNotif(null), 3000);
       } else {
         const errorMsg = json.details?.[0]?.message || json.error || "Gagal menyimpan";
         alert(errorMsg);
@@ -320,13 +324,24 @@ export default function DataPasienPage() {
               <input type="text" placeholder="Nama Lengkap" required value={formData.nama} className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none" onChange={(e) => setFormData({ ...formData, nama: e.target.value })} />
               <div className="flex gap-4">
                 <select className="w-1/2 border-2 border-gray-100 p-3 rounded-xl outline-none" value={formData.jenisKelamin} onChange={(e) => setFormData({ ...formData, jenisKelamin: e.target.value })} required>
-                  <option value="" disabled>Pilih Kelamin</option>
+                  <option value="" disabled>Pilih Jenis Kelamin</option>
                   <option value="LAKI_LAKI">Laki-laki</option>
                   <option value="PEREMPUAN">Perempuan</option>
                 </select>
                 <input type="date" required value={formData.tanggalLahir} className="w-1/2 border-2 border-gray-100 p-3 rounded-xl outline-none" onChange={(e) => setFormData({ ...formData, tanggalLahir: e.target.value })} />
               </div>
-              <input type="text" placeholder="Nomor Telepon (Opsional)" value={formData.noTelepon} className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none" onChange={(e) => setFormData({ ...formData, noTelepon: e.target.value })} />
+              <input 
+                type="text" 
+                placeholder="Nomor Telepon (Opsional)" 
+                value={formData.noTelepon} 
+                maxLength={15}
+                className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none" 
+                onChange={(e) => {
+                  // Replace otomatis menghapus semua huruf/simbol yang diketik, sisa angka aja
+                  const onlyNums = e.target.value.replace(/\D/g, "");
+                  setFormData({ ...formData, noTelepon: onlyNums });
+                }} 
+              />              
               <textarea placeholder="Alamat Lengkap (Opsional)" value={formData.alamat} className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none h-24 resize-none" onChange={(e) => setFormData({ ...formData, alamat: e.target.value })} />
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-xl transition-all">Batal</button>
@@ -346,10 +361,26 @@ export default function DataPasienPage() {
             <h3 className="text-2xl font-bold mb-2 text-black">Hapus Data?</h3>
             <p className="text-gray-500 mb-8 leading-relaxed">Data pasien yang dihapus tidak dapat dikembalikan. Apakah Anda yakin?</p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 font-bold text-gray-600 transition-colors">Batal</button>
+              <button 
+                onClick={() => {
+                  setDeleteTarget(null);
+                  setNotif("Aman! Data pasien tidak jadi dihapus.");
+                  setTimeout(() => setNotif(null), 3000);
+                }} 
+                className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 font-bold text-gray-600 transition-colors"
+              >
+                Batal
+              </button>
               <button onClick={executeDelete} className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 font-bold text-white shadow-lg transition-colors">Ya, Hapus</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {notif && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary  text-white px-6 py-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-3 border-2 font-bold text-sm animate-in fade-in slide-in-from-top-5 duration-300">
+          <span className="text-lg">ℹ️</span>
+          <span>{notif}</span>
         </div>
       )}
     </div>

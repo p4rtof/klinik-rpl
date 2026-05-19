@@ -7,6 +7,7 @@ export default function PembayaranPage() {
   const [statsPembayaran, setStatsPembayaran] = useState({ total: 0, lunas: 0, pending: 0 });
   const [searchQuery, setSearchQuery] = useState("");
   const [isTableLoading, setIsTableLoading] = useState(true);
+  const [notif, setNotif] = useState<string | null>(null); 
 
   // Modal Rujukan (Bawaan)
   const [isRujukanOpen, setIsRujukanOpen] = useState(false);
@@ -189,7 +190,9 @@ export default function PembayaranPage() {
       if (res.ok) {
         setIsEditOpen(false);
         fetchPembayaran();
-        showNotif("success", "Transaksi berhasil diperbarui!");
+        // showNotif("success", "Transaksi berhasil diperbarui!");
+        setNotif("Mantap! Transaksi berhasil diperbarui.");
+        setTimeout(() => setNotif(null), 3000);
       }
     } catch (err) { 
       showNotif("error", "Terjadi kesalahan saat update transaksi.");
@@ -654,7 +657,18 @@ export default function PembayaranPage() {
               <h2 className="text-2xl font-black text-gray-800 mb-2">Hapus Transaksi?</h2>
               <p className="text-gray-500 font-medium mb-6">Data pembayaran ini akan dihapus permanen dan tidak bisa dikembalikan.</p>
               <div className="flex gap-3 w-full">
-                <button onClick={() => { setShowDeleteModal(false); setDeleteTargetId(null); }} className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors">Batal</button>
+              <button 
+                onClick={() => { 
+                  setShowDeleteModal(false); 
+                  setDeleteTargetId(null); 
+                  // Memanggil notif saat batal hapus
+                  setNotif("Aman! Data transaksi tidak jadi dihapus.");
+                  setTimeout(() => setNotif(null), 3000);
+                }} 
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+              >
+                Batal
+              </button>
                 <button onClick={handleHapus} className="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold hover:bg-red-600 transition-colors active:scale-95">Ya, Hapus</button>
               </div>
             </div>
@@ -706,6 +720,12 @@ export default function PembayaranPage() {
               <button onClick={() => setShowNotifModal(false)} className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors">Tutup</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {notif && (
+      <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-white/10 animate-in fade-in slide-in-from-bottom-5 duration-300 font-bold text-sm">          <span className="text-lg">ℹ️</span>
+          <span>{notif}</span>
         </div>
       )}
     </div>

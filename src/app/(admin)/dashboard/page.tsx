@@ -16,12 +16,14 @@ export default function DashboardPage() {
   const now = new Date();
   const todayDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
+  const [notif, setNotif] = useState<string | null>(null);
   // --- STATE DATA ---
   const [dataKunjungan, setDataKunjungan] = useState<any[]>([]);
   const [pasienList, setPasienList] = useState<any[]>([]);
   const [dokterList, setDokterList] = useState<any[]>([]);
   const [ringkasan, setRingkasan] = useState({ belum: 0, sudah: 0 });
   const [antreanNext, setAntreanNext] = useState({ nama: "-", nomor: "-" });
+  
 
   // State UI
   const [showModal, setShowModal] = useState(false);
@@ -267,6 +269,9 @@ export default function DashboardPage() {
             .replace(".", ":"),
         }));
         fetchData();
+        // TAMBAHKAN 2 BARIS INI:
+        setNotif("Berhasil! Kunjungan baru sukses ditambahkan.");
+        setTimeout(() => setNotif(null), 3000);
       } else {
         alert("Gagal: " + (json.issues?.[0]?.message || json.error));
       }
@@ -328,6 +333,8 @@ export default function DashboardPage() {
       if (res.ok) {
         setShowEditModal(false);
         fetchData();
+        setNotif("Mantap! Data kunjungan berhasil diperbarui.");
+        setTimeout(() => setNotif(null), 3000);
       } else alert("Gagal memperbarui kunjungan.");
     } catch (err) {
       alert("Terjadi kesalahan.");
@@ -401,14 +408,15 @@ export default function DashboardPage() {
           <h3 className="font-bold text-gray-800 text-xl mb-2">
             Antrean Berikutnya:
           </h3>
-          <div className="flex items-center justify-between">
-            <p className="text-primary text-xl font-bold uppercase truncate max-w-[150px]">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-primary text-2xl font-bold uppercase break-words leading-snug">
               {antreanNext.nama}
             </p>
-            <p className="text-6xl font-black text-primary">
+            <p className="text-6xl font-black text-primary flex-shrink-0">
               {antreanNext.nomor}
             </p>
           </div>
+        
         </div>
       </div>
 
@@ -775,12 +783,14 @@ export default function DashboardPage() {
                 <p>Status:</p>
                 <p>{selectedKunjungan.status}</p>
               </div>
+              
               <div className="mt-4">
                 <p className="text-gray-400 text-sm">Keluhan:</p>
                 <p className="bg-gray-50 p-3 rounded-xl italic mt-1">
                   {selectedKunjungan.keluhan || "Tidak ada keluhan"}
                 </p>
               </div>
+              
             </div>
             <div className="p-6">
               <button
@@ -907,6 +917,8 @@ export default function DashboardPage() {
                   onClick={() => {
                     setShowDeleteModal(false);
                     setDeleteTargetId(null);
+                    setNotif("Kunjungan tidak jadi dihapus dan tetap berada pada antrean.");
+                    setTimeout(() => setNotif(null), 3500);
                   }}
                   className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
                 >
@@ -922,6 +934,12 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {notif && (
+      <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-white/10 animate-in fade-in slide-in-from-bottom-5 duration-300 font-bold text-sm">    <span className="text-lg">ℹ️</span>
+          <span>{notif}</span>
         </div>
       )}
     </div>
