@@ -99,13 +99,37 @@ export default function DataPasienPage() {
   const executeDelete = async () => {
     if (!deleteTarget) return;
     try {
+      // 1. Ambil data antrean/kunjungan aktif untuk hari ini ke depan
+      const resAntrian = await fetch("/api/antrian");
+      const jsonAntrian = await resAntrian.json();
+
+      if (jsonAntrian.success) {
+        // 2. Cek apakah ada antrean milik pasien ini yang statusnya masih MENUNGGU
+        const adaKunjunganMenunggu = jsonAntrian.data.some(
+          (antrean: any) =>
+            antrean.pasienId === deleteTarget && antrean.status === "MENUNGGU"
+        );
+
+        // 3. Jika ada, batalkan penghapusan dan munculkan notifikasi peringatan
+        if (adaKunjunganMenunggu) {
+          setDeleteTarget(null);
+          setNotif("Gagal! Pasien ini masih masuk dalam daftar antrean tunggu.");
+          setTimeout(() => setNotif(null), 4000);
+          return; // Stop fungsi di sini
+        }
+      }
+
+      // 4. Jika tidak ada antrean menggantung, lanjut hapus seperti biasa
       const res = await fetch(`/api/pasien/${deleteTarget}`, {
         method: "DELETE",
         headers: { "x-user-role": "ADMIN" },
       });
+      
       if (res.ok) {
         setDeleteTarget(null);
         fetchPasien();
+        setNotif("Berhasil! Data pasien telah dihapus permanen.");
+        setTimeout(() => setNotif(null), 3000);
       } else {
         alert("Gagal menghapus data");
       }

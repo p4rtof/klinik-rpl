@@ -23,7 +23,6 @@ export default function DashboardPage() {
   const [dokterList, setDokterList] = useState<any[]>([]);
   const [ringkasan, setRingkasan] = useState({ belum: 0, sudah: 0 });
   const [antreanNext, setAntreanNext] = useState({ nama: "-", nomor: "-" });
-  
 
   // State UI
   const [showModal, setShowModal] = useState(false);
@@ -87,12 +86,14 @@ export default function DashboardPage() {
       if (jsonAntrean.success) {
         setDataKunjungan(jsonAntrean.data);
 
-        // Ringkasan ambil dari hari ini aja
+        // Ringkasan ambil dari hari ini ATAU yang terlewat tapi masih MENUNGGU
         const dataHariIni = jsonAntrean.data.filter((a: any) => {
           const tgl = a.tanggal
             ? new Date(a.tanggal).toISOString().split("T")[0]
             : "";
-          return tgl === todayDate;
+          return (
+            tgl === todayDate || (tgl < todayDate && a.status === "MENUNGGU")
+          );
         });
 
         const belum = dataHariIni.filter(
@@ -106,9 +107,19 @@ export default function DashboardPage() {
         // Filter yang menunggu, lalu urutkan dari nomor terkecil
         const next = dataHariIni
           .filter((a: any) => a.status === "MENUNGGU")
-          .sort(
-            (a: any, b: any) => (a.nomorAntrian || 0) - (b.nomorAntrian || 0),
-          )[0];
+          .sort((a: any, b: any) => {
+            // Ambil waktu dari tanggal antrean
+            const dateA = new Date(a.tanggal || 0).getTime();
+            const dateB = new Date(b.tanggal || 0).getTime();
+
+            // 1. Urutkan berdasarkan tanggal lebih dulu (yang kemarin/terlewat dipanggil duluan)
+            if (dateA !== dateB) {
+              return dateA - dateB;
+            }
+
+            // 2. Kalau tanggalnya sama (misal sama-sama hari ini), baru urutkan dari nomor antrean terkecil
+            return (a.nomorAntrian || 0) - (b.nomorAntrian || 0);
+          })[0];
 
         if (next) {
           setAntreanNext({
@@ -157,7 +168,7 @@ export default function DashboardPage() {
         ? new Date(item.tanggal).toISOString().split("T")[0]
         : "";
 
-      if (itemDate < todayDate) return false;
+      if (itemDate < todayDate && item.status !== "MENUNGGU") return false;
 
       const nama = (item.pasien?.nama || "").toLowerCase();
       const rm = (item.pasien?.noRm || "").toLowerCase();
@@ -416,7 +427,6 @@ export default function DashboardPage() {
               {antreanNext.nomor}
             </p>
           </div>
-        
         </div>
       </div>
 
@@ -503,9 +513,13 @@ export default function DashboardPage() {
                       ? `${hitungUsia(item.pasien.tanggalLahir)} Tahun`
                       : "-"}
                   </td>
-                  <td className="p-3 w-[12%]">
+                  <td className="px-4 py-3 text-md font-bold text-center">
                     {item.tanggal
-                      ? new Date(item.tanggal).toLocaleDateString("id-ID")
+                      ? new Date(item.tanggal).toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
                       : "-"}
                   </td>
                   <td className="p-3 w-[10%]">{item.jam}</td>
@@ -660,7 +674,8 @@ export default function DashboardPage() {
                   </Link>
                 </div>
                 <p className="text-xs font-medium text-orange-600 italic mt-2 bg-orange-50 p-2 rounded-lg border border-orange-100">
-                  * Pasien belum terdaftar? Silahkan daftar pasien baru terlebih dahulu melalui tombol (+)
+                  * Pasien belum terdaftar? Silahkan daftar pasien baru terlebih
+                  dahulu melalui tombol (+)
                 </p>
               </div>
               <div>
@@ -783,14 +798,13 @@ export default function DashboardPage() {
                 <p>Status:</p>
                 <p>{selectedKunjungan.status}</p>
               </div>
-              
+
               <div className="mt-4">
                 <p className="text-gray-400 text-sm">Keluhan:</p>
                 <p className="bg-gray-50 p-3 rounded-xl italic mt-1">
                   {selectedKunjungan.keluhan || "Tidak ada keluhan"}
                 </p>
               </div>
-              
             </div>
             <div className="p-6">
               <button
@@ -917,7 +931,9 @@ export default function DashboardPage() {
                   onClick={() => {
                     setShowDeleteModal(false);
                     setDeleteTargetId(null);
-                    setNotif("Kunjungan tidak jadi dihapus dan tetap berada pada antrean.");
+                    setNotif(
+                      "Kunjungan tidak jadi dihapus dan tetap berada pada antrean.",
+                    );
                     setTimeout(() => setNotif(null), 3500);
                   }}
                   className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
@@ -938,7 +954,9 @@ export default function DashboardPage() {
       )}
 
       {notif && (
-      <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-white/10 animate-in fade-in slide-in-from-bottom-5 duration-300 font-bold text-sm">    <span className="text-lg">ℹ️</span>
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-white/10 animate-in fade-in slide-in-from-bottom-5 duration-300 font-bold text-sm">
+          {" "}
+          <span className="text-lg">ℹ️</span>
           <span>{notif}</span>
         </div>
       )}

@@ -284,7 +284,7 @@ export default function PembayaranPage() {
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5">
           <img src="/componen-admin/kantong-uang.svg" className="w-15 h-15 opacity-180" alt="" />
           <div>
-            <p className="text-gray-500 font-medium">Total Tagihan</p>
+            <p className="text-gray-500 font-medium">Total Pendapatan</p>
             <p className="text-2xl font-bold text-primary">Rp {statsPembayaran.total.toLocaleString("id-ID")}</p>
           </div>
         </div>
@@ -317,7 +317,7 @@ export default function PembayaranPage() {
               <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">ID Transaksi</th>
               <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Nama Pasien</th>
               <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Total Biaya</th>
-              <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Metode</th>
+              <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Tgl Kunjungan</th>
               <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Status</th>
               <th className="px-4 py-3 text-lg font-bold border-r border-2 border-white/50 text-center uppercase">Rujukan</th>
               <th className="px-4 py-3 text-lg font-bold border-2 border-white/50 text-center uppercase w-[20%]">Aksi</th>
@@ -332,8 +332,19 @@ export default function PembayaranPage() {
                     <td className="px-4 py-3 font-bold w-[12%] text-primary">{item.id.split("-")[0].toUpperCase()}</td>
                     <td className="px-4 py-3 text-left w-[18%] capitalize">{item.pasien?.nama}</td>
                     <td className="px-4 py-3">Rp {item.jumlah.toLocaleString("id-ID")}</td>
-                    <td className="px-4 py-3 font-bold text-gray-500">
-                      {item.metode ? item.metode.replace("_", " ") : "-"}
+                    <td className="px-4 py-3 font-bold">
+                      {(() => {
+    // Cari tanggal dari berbagai kemungkinan field di database kamu
+    const tgl = item.tanggal || item.createdAt || item.antrian?.tanggal || item.rekamMedis?.tanggal;
+    
+    return tgl 
+      ? new Date(tgl).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "-";
+  })()}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-3 py-1 rounded-full text-sm font-bold ${item.status === "LUNAS" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
@@ -449,6 +460,18 @@ export default function PembayaranPage() {
             <div className="p-8 space-y-4 font-bold text-gray-700">
               <div className="flex justify-between border-b border-gray-100 pb-2"><p>ID Transaksi:</p><p className="text-indigo-600">{detailData.id.split("-")[0].toUpperCase()}</p></div>
               <div className="flex justify-between border-b border-gray-100 pb-2"><p>Pasien:</p><p className="uppercase">{detailData.pasien?.nama}</p></div>
+              <div className="flex justify-between border-b border-gray-100 pb-2">
+  <p className="text-gray-700">Tanggal Kunjungan:</p>
+  <p className="font-bold">
+    {detailData?.rekamMedis?.tanggal || detailData?.tanggal || detailData?.createdAt
+      ? new Date(detailData.rekamMedis?.tanggal || detailData.tanggal || detailData.createdAt).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })
+      : "-"}
+  </p>
+</div>
               <div className="flex justify-between border-b border-gray-100 pb-2"><p>Status:</p><p className={detailData.status === "LUNAS" ? "text-green-600" : "text-orange-500"}>{detailData.status === "LUNAS" ? "LUNAS" : "BELUM BAYAR"}</p></div>
               <div className="flex justify-between border-b border-gray-100 pb-2"><p>Metode:</p><p>{detailData.metode || "-"}</p></div>
               <div className="flex justify-between pt-2"><p className="text-gray-500">Total Biaya:</p><p className="text-xl font-black text-black">Rp {detailData.jumlah.toLocaleString('id-ID')}</p></div>

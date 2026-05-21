@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from "react";
+import Link from "next/link"
 
 type MonthOption = { label: string; value: number };
 
@@ -157,21 +158,42 @@ export default function JadwalSayaPage() {
             <div className="p-8 space-y-4 max-h-[60vh] overflow-y-auto">
               {detailJadwal.map((j: any) => (
                 <div key={j.id} className="flex items-center justify-between p-5 bg-gray-50 rounded-[24px] border border-gray-100">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm font-black text-primary border border-blue-50">
-                      {j.nomorAntrian}
-                    </div>
-                    <div>
-                      <p className="text-lg font-black capitalize">{j.pasien?.nama}</p>
-                      <p className="text-sm font-bold text-gray-400">{j.jam} WIB • {j.pasien?.noRm}</p>
-                    </div>
-                  </div>
-                  <span className={`px-4 py-1.5 rounded-full text-sm font-black uppercase ${
-                    j.status === 'SELESAI' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {j.status}
-                  </span>
-                </div>
+  <div className="flex items-center gap-4">
+    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm font-black text-primary border border-blue-50">
+      {j.nomorAntrian}
+    </div>
+    <div>
+      <p className="text-lg font-black capitalize">{j.pasien?.nama}</p>
+      <p className="text-sm font-bold text-gray-400">{j.jam} WIB • {j.pasien?.noRm}</p>
+    </div>
+  </div>
+  <div className="flex items-center gap-3">
+    <span className={`px-4 py-1.5 rounded-full text-sm font-black uppercase ${
+      j.status === 'SELESAI' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+    }`}>
+      {j.status}
+    </span>
+    <Link
+      href={`/rekam-medis?id=${j.id}`}
+      onClick={() => setShowModal(false)}
+      className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all"
+      title="Lihat Riwayat"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    </Link>
+    {j.status === 'MENUNGGU' && (
+      <Link
+        href={`/periksa?id=${j.id}`}
+        onClick={() => setShowModal(false)}
+        className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all"
+      >
+        Periksa
+      </Link>
+    )}
+  </div>
+</div>
               ))}
             </div>
 
