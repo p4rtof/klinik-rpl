@@ -3,11 +3,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-type SortBy = "default" | "tanggal" | "rm" | "nama" | "usia" | "antrian";
+type SortBy =
+  | "default"
+  | "tanggal"
+  | "rm"
+  | "nama"
+  | "usia"
+  | "antrian"
+  | "status";
 
 export default function DashboardPage() {
-  const todayDate = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const todayDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
+  const [notif, setNotif] = useState<string | null>(null);
   // --- STATE DATA ---
   const [dataKunjungan, setDataKunjungan] = useState<any[]>([]);
   const [pasienList, setPasienList] = useState<any[]>([]);
@@ -24,19 +33,23 @@ export default function DashboardPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedKunjungan, setSelectedKunjungan] = useState<any>(null);
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({
     id: "",
     keluhan: "",
     status: "",
     tanggal: "",
+    jam: "",
   });
 
   // FILTER / SORT / PAGINATION
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("default");
   const [page, setPage] = useState(1);
-  const pageSize = 8;
+  const pageSize = 10;
 
   // State Form Kunjungan
   const [formData, setFormData] = useState({
@@ -74,12 +87,14 @@ export default function DashboardPage() {
       if (jsonAntrean.success) {
         setDataKunjungan(jsonAntrean.data);
 
-        // Ringkasan ambil dari hari ini aja
+        // Ringkasan ambil dari hari ini ATAU yang terlewat tapi masih MENUNGGU
         const dataHariIni = jsonAntrean.data.filter((a: any) => {
           const tgl = a.tanggal
             ? new Date(a.tanggal).toISOString().split("T")[0]
             : "";
-          return tgl === todayDate;
+          return (
+            tgl === todayDate || (tgl < todayDate && a.status === "MENUNGGU")
+          );
         });
 
         const belum = dataHariIni.filter(
@@ -90,13 +105,31 @@ export default function DashboardPage() {
         ).length;
         setRingkasan({ belum, sudah });
 
-        const next = dataHariIni.find((a: any) => a.status === "MENUNGGU");
-        if (next)
+        // Filter yang menunggu, lalu urutkan dari nomor terkecil
+        const next = dataHariIni
+          .filter((a: any) => a.status === "MENUNGGU")
+          .sort((a: any, b: any) => {
+            // Ambil waktu dari tanggal antrean
+            const dateA = new Date(a.tanggal || 0).getTime();
+            const dateB = new Date(b.tanggal || 0).getTime();
+
+            // 1. Urutkan berdasarkan tanggal lebih dulu (yang kemarin/terlewat dipanggil duluan)
+            if (dateA !== dateB) {
+              return dateA - dateB;
+            }
+
+            // 2. Kalau tanggalnya sama (misal sama-sama hari ini), baru urutkan dari nomor antrean terkecil
+            return (a.nomorAntrian || 0) - (b.nomorAntrian || 0);
+          })[0];
+
+        if (next) {
           setAntreanNext({
             nama: next.pasien?.nama || "-",
             nomor: next.nomorAntrian || "-",
           });
-        else setAntreanNext({ nama: "-", nomor: "-" });
+        } else {
+          setAntreanNext({ nama: "-", nomor: "-" });
+        }
       }
 
       const [resPasien, resDokter] = await Promise.all([
@@ -132,9 +165,11 @@ export default function DashboardPage() {
     const q = search.trim().toLowerCase();
 
     const filtered = dataKunjungan.filter((item: any) => {
-      const itemDate = item.tanggal ? new Date(item.tanggal).toISOString().split("T")[0] : "";
-      
-      if (itemDate < todayDate) return false;
+      const itemDate = item.tanggal
+        ? new Date(item.tanggal).toISOString().split("T")[0]
+        : "";
+
+      if (itemDate < todayDate && item.status !== "MENUNGGU") return false;
 
       const nama = (item.pasien?.nama || "").toLowerCase();
       const rm = (item.pasien?.noRm || "").toLowerCase();
@@ -160,14 +195,18 @@ export default function DashboardPage() {
         );
       if (sortBy === "antrian")
         return (a.nomorAntrian ?? 0) - (b.nomorAntrian ?? 0);
+      if (sortBy === "status")
+        return (a.status || "").localeCompare(b.status || "");
+
+      if (sortBy === "default" && a.status !== b.status) {
+        return a.status === "MENUNGGU" ? -1 : 1;
+      }
 
       const dateA = new Date(a.tanggal || 0).getTime();
       const dateB = new Date(b.tanggal || 0).getTime();
 
-      // ✅ URUTKAN TANGGAL: HARI INI DULUAN, BARU BESOK, LUSA (Ascending)
-      if (dateA !== dateB) return dateA - dateB; 
-      
-      // Jika tanggal sama, urutkan berdasarkan nomor antrean
+      if (dateA !== dateB) return dateA - dateB;
+
       return (a.nomorAntrian ?? 0) - (b.nomorAntrian ?? 0);
     });
 
@@ -242,6 +281,9 @@ export default function DashboardPage() {
             .replace(".", ":"),
         }));
         fetchData();
+        // TAMBAHKAN 2 BARIS INI:
+        setNotif("Berhasil! Kunjungan baru sukses ditambahkan.");
+        setTimeout(() => setNotif(null), 3000);
       } else {
         alert("Gagal: " + (json.issues?.[0]?.message || json.error));
       }
@@ -252,14 +294,27 @@ export default function DashboardPage() {
     }
   };
 
-  const handleHapusKunjungan = async (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus kunjungan ini?")) return;
+  const confirmHapus = (id: string) => {
+    setDeleteTargetId(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleHapusKunjungan = async () => {
+    if (!deleteTargetId) return;
     try {
-      const res = await fetch(`/api/antrian/${id}`, { method: "DELETE" });
-      if (res.ok) fetchData();
-      else alert("Gagal menghapus kunjungan.");
+      const res = await fetch(`/api/antrian/${deleteTargetId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        fetchData();
+        setNotif("Kunjungan dihapus");
+        setTimeout(() => setNotif(null), 3000);
+      } else alert("Gagal menghapus kunjungan.");
     } catch (err) {
       alert("Terjadi kesalahan saat menghapus.");
+    } finally {
+      setShowDeleteModal(false);
+      setDeleteTargetId(null);
     }
   };
 
@@ -272,6 +327,7 @@ export default function DashboardPage() {
       keluhan: item.keluhan || "",
       status: item.status,
       tanggal: tgl,
+      jam: item.jam || "",
     });
     setShowEditModal(true);
   };
@@ -285,6 +341,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           keluhan: editFormData.keluhan,
           status: editFormData.status,
+          jam: editFormData.jam,
           tanggal: editFormData.tanggal
             ? new Date(editFormData.tanggal).toISOString()
             : undefined,
@@ -293,6 +350,8 @@ export default function DashboardPage() {
       if (res.ok) {
         setShowEditModal(false);
         fetchData();
+        setNotif("Mantap! Data kunjungan berhasil diperbarui.");
+        setTimeout(() => setNotif(null), 3000);
       } else alert("Gagal memperbarui kunjungan.");
     } catch (err) {
       alert("Terjadi kesalahan.");
@@ -366,11 +425,11 @@ export default function DashboardPage() {
           <h3 className="font-bold text-gray-800 text-xl mb-2">
             Antrean Berikutnya:
           </h3>
-          <div className="flex items-center justify-between">
-            <p className="text-primary text-xl font-bold uppercase truncate max-w-[150px]">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-primary text-2xl font-bold uppercase break-words leading-snug">
               {antreanNext.nama}
             </p>
-            <p className="text-6xl font-black text-primary">
+            <p className="text-6xl font-black text-primary flex-shrink-0">
               {antreanNext.nomor}
             </p>
           </div>
@@ -392,6 +451,7 @@ export default function DashboardPage() {
             <option value="nama">Nama Pasien</option>
             <option value="usia">Usia</option>
             <option value="antrian">Nomor Antrian</option>
+            <option value="status">Status</option>
           </select>
 
           <div className="relative">
@@ -448,22 +508,105 @@ export default function DashboardPage() {
             ) : pagedData.length > 0 ? (
               pagedData.map((item: any) => (
                 <tr key={item.id} className="hover:bg-blue-50/30 text-lg">
-                  <td className="p-3 w-[10%]">{item.pasien?.noRm?.split("-")[0].toUpperCase() || "-"}</td>
-                  <td className="p-3 text-left capitalize">{item.pasien?.nama || "-"}</td>
-                  <td className="p-3 w-[10%]">{item.pasien?.tanggalLahir ? `${hitungUsia(item.pasien.tanggalLahir)} Tahun` : "-"}</td>
-                  <td className="p-3 w-[12%]">{item.tanggal ? new Date(item.tanggal).toLocaleDateString("id-ID") : "-"}</td>
+                  <td className="p-3 w-[10%]">
+                    {item.pasien?.noRm?.split("-")[0].toUpperCase() || "-"}
+                  </td>
+                  <td className="p-3 text-left capitalize">
+                    {item.pasien?.nama || "-"}
+                  </td>
+                  <td className="p-3 w-[10%]">
+                    {item.pasien?.tanggalLahir
+                      ? `${hitungUsia(item.pasien.tanggalLahir)} Tahun`
+                      : "-"}
+                  </td>
+                  <td className="px-4 py-3 text-md font-bold text-center">
+                    {item.tanggal
+                      ? new Date(item.tanggal).toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "-"}
+                  </td>
                   <td className="p-3 w-[10%]">{item.jam}</td>
-                  <td className="p-3 w-[10%] text-lg font-black text-primary">{item.nomorAntrian}</td>
+                  <td className="p-3 w-[10%] text-lg font-black text-primary">
+                    {item.nomorAntrian}
+                  </td>
                   <td className="p-3 w-[12%]">
-                    <span className={`px-2 py-1 rounded-full text-sm uppercase ${item.status === "MENUNGGU" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}>
+                    <span
+                      className={`px-2 py-1 rounded-full text-sm uppercase ${item.status === "MENUNGGU" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}
+                    >
                       {item.status}
                     </span>
                   </td>
                   <td className="p-3 w-[13%]">
                     <div className="flex justify-center  gap-2">
-                      <button onClick={() => { setSelectedKunjungan(item); setShowDetailModal(true); }} className="p-1.5 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg></button>
-                      <button onClick={() => openEditModal(item)} className="p-1.5 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                      <button onClick={() => handleHapusKunjungan(item.id)} className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                      <button
+                        onClick={() => {
+                          setSelectedKunjungan(item);
+                          setShowDetailModal(true);
+                        }}
+                        className="p-1.5 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => openEditModal(item)}
+                        className="p-1.5 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => confirmHapus(item.id)}
+                        className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -478,7 +621,7 @@ export default function DashboardPage() {
           </tbody>
         </table>
         {!isTableLoading && filteredSorted.length > 0 && (
-          <div className="flex justify-center items-center gap-2 py-4">
+          <div className="flex justify-center items-center gap-2 py-4 border-t border-gray-100">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={safePage === 1}
@@ -536,6 +679,10 @@ export default function DashboardPage() {
                     +
                   </Link>
                 </div>
+                <p className="text-xs font-medium text-orange-600 italic mt-2 bg-orange-50 p-2 rounded-lg border border-orange-100">
+                  * Pasien belum terdaftar? Silahkan daftar pasien baru terlebih
+                  dahulu melalui tombol (+)
+                </p>
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-400 uppercase">
@@ -641,12 +788,13 @@ export default function DashboardPage() {
               </div>
               <div className="flex justify-between border-b border-gray-100 pb-2">
                 <p>Tanggal:</p>
-                <p>
+                <p className="text-right">
                   {selectedKunjungan.tanggal
                     ? new Date(selectedKunjungan.tanggal).toLocaleDateString(
                         "id-ID",
                       )
                     : "-"}
+                  {selectedKunjungan.jam ? ` • ${selectedKunjungan.jam}` : ""}
                 </p>
               </div>
               <div className="flex justify-between border-b border-gray-100 pb-2">
@@ -657,6 +805,7 @@ export default function DashboardPage() {
                 <p>Status:</p>
                 <p>{selectedKunjungan.status}</p>
               </div>
+
               <div className="mt-4">
                 <p className="text-gray-400 text-sm">Keluhan:</p>
                 <p className="bg-gray-50 p-3 rounded-xl italic mt-1">
@@ -699,6 +848,22 @@ export default function DashboardPage() {
                     })
                   }
                   className="w-full border-2 border-gray-200 p-3 rounded-xl outline-none mt-1 focus:border-yellow-500 font-semibold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase">
+                  Jam Kunjungan
+                </label>
+                <input
+                  type="time"
+                  value={editFormData.jam}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      jam: e.target.value,
+                    })
+                  }
+                  className="w-full border-2 border-gray-200 p-3 rounded-xl mt-1 outline-none focus:border-yellow-500 font-semibold"
                 />
               </div>
               <div>
@@ -749,6 +914,73 @@ export default function DashboardPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* MODAL KONFIRMASI HAPUS */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in">
+            <div className="p-8 flex flex-col items-center text-center">
+              {/* Icon */}
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-8 w-8 text-red-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </div>
+
+              <h2 className="text-2xl font-black text-gray-800 mb-2">
+                Hapus Kunjungan?
+              </h2>
+              <p className="text-gray-500 font-medium mb-6">
+                Data kunjungan ini akan dihapus permanen dan tidak bisa
+                dikembalikan.
+              </p>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteTargetId(null);
+                    setNotif(
+                      "Kunjungan tidak jadi dihapus dan tetap berada pada antrean.",
+                    );
+                    setTimeout(() => setNotif(null), 3500);
+                  }}
+                  className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHapusKunjungan}
+                  className="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold hover:bg-red-600 transition-colors active:scale-95"
+                >
+                  Ya, Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {notif && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-white/10 animate-in fade-in slide-in-from-bottom-5 duration-300 font-bold text-sm">
+          {" "}
+          <span className="text-lg">ℹ️</span>
+          <span>{notif}</span>
         </div>
       )}
     </div>

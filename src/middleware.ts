@@ -5,49 +5,81 @@ import { JWT_SECRET_KEY } from "@/lib/auth";
 
 const key = new TextEncoder().encode(JWT_SECRET_KEY);
 
+// Route yang hanya bisa diakses ADMIN
+const ADMIN_ROUTES = ["/dashboard", "/data-pasien", "/pembayaran"];
+// Route yang hanya bisa diakses DOKTER
+const DOCTOR_ROUTES = ["/dashboard-dokter", "/jadwal-saya", "/periksa", "/rekam-medis", "/profile"];
+
+function isAdminRoute(pathname: string) {
+  return ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+}
+
+function isDoctorRoute(pathname: string) {
+  return DOCTOR_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("token")?.value;
 
-  // LOGIKA UNTUK API (Agar Backend Adit tidak 401/Unauthorized)
+  // ============================================================
+  // API Routes: Injeksi x-user-id dan x-user-role dari JWT
+  // ============================================================
   if (pathname.startsWith("/api")) {
     const requestHeaders = new Headers(request.headers);
-    
     if (token) {
       try {
-        // Kita verifikasi token langsung di sini tanpa panggil file lain
         const { payload } = await jwtVerify(token, key);
         if (payload) {
-          // Suntikkan headers yang diminta Backend Adit
           requestHeaders.set("x-user-id", payload.id as string);
           requestHeaders.set("x-user-role", payload.role as string);
         }
       } catch {
-        // Jika token basi, biarkan saja
+        // Token basi/invalid
       }
     }
-
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
-  // PROTEKSI HALAMAN (Mencegah masuk dashboard kalau belum login)
-  const isAuthPage = pathname.startsWith("/login");
-  const isProtectedRoute = 
-    pathname.startsWith("/dashboard") || 
-    pathname.startsWith("/profile") || 
-    pathname.startsWith("/data-pasien");
+  // ============================================================
+  // Page Routes: Proteksi role-based
+  // ============================================================
+  const isAuthPage = pathname === "/login" || pathname.startsWith("/login/");
+  const isProtectedRoute = isAdminRoute(pathname) || isDoctorRoute(pathname);
 
+  // Belum login → redirect ke /login
   if (!token && isProtectedRoute) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (token && isAuthPage) {
-    // Kalau sudah login tapi mau ke /login, lempar ke dashboard
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  if (token) {
+    try {
+      const { payload } = await jwtVerify(token, key);
+      const role = payload.role as string;
+
+      // Sudah login tapi buka /login → redirect ke dashboard sesuai role
+      if (isAuthPage) {
+        const dest = role === "ADMIN" ? "/dashboard" : "/dashboard-dokter";
+        return NextResponse.redirect(new URL(dest, request.url));
+      }
+
+      // ADMIN mencoba akses route DOKTER → redirect ke /dashboard
+      if (role === "ADMIN" && isDoctorRoute(pathname)) {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
+
+      // DOKTER mencoba akses route ADMIN → redirect ke /dashboard-dokter
+      if (role === "DOKTER" && isAdminRoute(pathname)) {
+        return NextResponse.redirect(new URL("/dashboard-dokter", request.url));
+      }
+    } catch {
+      // Token invalid → hapus cookie & redirect ke login jika halaman protected
+      if (isProtectedRoute) {
+        const response = NextResponse.redirect(new URL("/login", request.url));
+        response.cookies.delete("token");
+        return response;
+      }
+    }
   }
 
   return NextResponse.next();
@@ -55,10 +87,16 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/api/:path*", 
-    "/dashboard/:path*", 
-    "/dashboard-dokter/:path*", 
-    "/profile/:path*", 
-    "/data-pasien/:path*"
+    "/api/:path*",
+    "/dashboard/:path*",
+    "/dashboard-dokter/:path*",
+    "/data-pasien/:path*",
+    "/pembayaran/:path*",
+    "/jadwal-saya/:path*",
+    "/periksa/:path*",
+    "/rekam-medis/:path*",
+    "/profile",
+    "/profile/:path*",
+    "/login",
   ],
 };

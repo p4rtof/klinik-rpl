@@ -3,11 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { pasienSchema } from "@/lib/validations";
 import { generatePasienIds } from "@/lib/id-generator";
 
-// GET /api/pasien?search=nama&searchType=nama|noRm|id
+// GET /api/pasien?search=...&searchType=nama|noRm|id|noTelepon&sortBy=id|nama|usia
 export async function GET(request: Request) {
   try {
     const role = request.headers.get("x-user-role");
-    if (role !== "ADMIN") {
+    if (role !== "ADMIN" && role !== "DOKTER") {
       return NextResponse.json(
         { success: false, error: "Forbidden" },
         { status: 403 },
@@ -16,26 +16,34 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
-    const searchType = searchParams.get("searchType") || "nama"; // default: cari by nama
+    const searchType = searchParams.get("searchType") || "nama";
+    const sortBy = searchParams.get("sortBy") || "id";
 
     let whereCondition: any = undefined;
 
     if (search) {
-      if (searchType === "noRm") {
-        // Cari by noRm (format: R0001)
-        whereCondition = { noRm: { contains: search } };
-      } else if (searchType === "id") {
-        // Cari by id (format: P0001)
-        whereCondition = { id: { contains: search } };
-      } else {
-        // Default: cari by nama
-        whereCondition = { nama: { contains: search } };
-      }
+      whereCondition = {
+        OR: [
+          { nama: { contains: search } },
+          { id: { contains: search } },
+          { noTelepon: { contains: search } },
+        ],
+      };
+    }
+
+    let orderBy: any = { id: "desc" };
+    if (sortBy === "nama") {
+      orderBy = { nama: "asc" };
+    } else if (sortBy === "tanggalLahir") {
+      // Usia ASC = Tanggal Lahir DESC (paling muda dulu)
+      orderBy = { tanggalLahir: "desc" };
+    } else if (sortBy === "id") {
+      orderBy = { id: "desc" };
     }
 
     const pasien = await prisma.pasien.findMany({
       where: whereCondition,
-      orderBy: { createdAt: "desc" },
+      orderBy,
     });
 
     return NextResponse.json({ success: true, data: pasien });
@@ -49,8 +57,6 @@ export async function GET(request: Request) {
 }
 
 // POST /api/pasien
-// Body: { nama, jenisKelamin, tanggalLahir, noTelepon?, alamat? }
-// id & noRm di-generate otomatis oleh server dengan format P0001, R0001, dst
 export async function POST(request: Request) {
   try {
     const role = request.headers.get("x-user-role");
@@ -68,7 +74,7 @@ export async function POST(request: Request) {
         {
           success: false,
           error: "Data tidak valid",
-          details: parseResult.error.errors,
+          details: parseResult.error.format(),
         },
         { status: 400 },
       );
@@ -80,8 +86,8 @@ export async function POST(request: Request) {
     const newPasien = await prisma.pasien.create({
       data: {
         ...parseResult.data,
-        id,      // Format: P0001, P0002, ...
-        noRm,    // Format: R0001, R0002, ...
+        id,
+        noRm,
       },
     });
 

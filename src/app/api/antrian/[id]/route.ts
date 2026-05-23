@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { updateStatusJadwalSchema } from "@/lib/validations";
+import { updateJadwalFullSchema } from "@/lib/validations";
 
 // 1. GET: Ambil detail antrian
 export async function GET(
@@ -27,7 +27,7 @@ export async function GET(
   }
 }
 
-// 2. PATCH: Untuk Edit Keluhan, Status, dan Tanggal (Sesuai permintaanmu)
+// 2. PATCH: Untuk Edit Keluhan, Status, Tanggal, dan Jam
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -41,6 +41,7 @@ export async function PATCH(
       data: {
         keluhan: body.keluhan,
         status: body.status,
+        jam: body.jam,
         // Jika body.tanggal ada, ubah jadi format Date
         tanggal: body.tanggal ? new Date(body.tanggal) : undefined,
       },

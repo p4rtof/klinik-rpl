@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const parseResult = loginSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
-        { success: false, error: 'Data tidak valid', details: parseResult.error.errors },
+        { success: false, error: 'Data tidak valid', details: parseResult.error.format() },
         { status: 400 }
       );
     }

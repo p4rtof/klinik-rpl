@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -9,7 +9,7 @@ export default function DataPasienPage() {
   const [pasienList, setPasienList] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isTableLoading, setIsTableLoading] = useState(true); // Tambah ini
+  const [isTableLoading, setIsTableLoading] = useState(true);
 
   // State untuk Search dan Sort
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,6 +19,47 @@ export default function DataPasienPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [isEdit, setIsEdit] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+
+  const [notif, setNotif] = useState<string | null>(null);
+
+  // ==========================================
+  // STATE & LOGIKA PAGINATION
+  // ==========================================
+  const [page, setPage] = useState(1);
+  const pageSize = 10; // Menampilkan 8 baris per halaman
+
+  // Kembalikan ke halaman 1 setiap kali user ngetik pencarian atau ngubah sorting
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(pasienList.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+
+  // Potong data pasien sesuai halaman aktif
+  const pagedData = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return pasienList.slice(start, start + pageSize);
+  }, [pasienList, safePage]);
+
+  // Render tombol angka 1, 2, 3, dst.
+  const renderPageButtons = () => {
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 9);
+    return pages.map((p) => (
+      <button
+        key={p}
+        onClick={() => setPage(p)}
+        className={`px-3 py-1 rounded-md font-bold ${
+          p === safePage
+            ? "bg-primary text-white"
+            : "text-primary hover:bg-blue-50"
+        }`}
+      >
+        {p}
+      </button>
+    ));
+  };
+  // ==========================================
 
   // State Form
   const [formData, setFormData] = useState({
@@ -31,9 +72,9 @@ export default function DataPasienPage() {
 
   // Fetch API dengan parameter Search
   const fetchPasien = async () => {
-    setIsTableLoading(true); // Mulai loading
+    setIsTableLoading(true);
     try {
-      const res = await fetch(`/api/pasien?search=${searchTerm}`, {
+      const res = await fetch(`/api/pasien?search=${searchTerm}&sortBy=${sortBy}`, {
         headers: { "x-user-role": "ADMIN" },
       });
       const json = await res.json();
@@ -41,7 +82,7 @@ export default function DataPasienPage() {
     } catch (err) {
       console.error("Gagal ambil data");
     } finally {
-      setIsTableLoading(false); // Selesai loading
+      setIsTableLoading(false);
     }
   };
 
@@ -58,13 +99,37 @@ export default function DataPasienPage() {
   const executeDelete = async () => {
     if (!deleteTarget) return;
     try {
+      // 1. Ambil data antrean/kunjungan aktif untuk hari ini ke depan
+      const resAntrian = await fetch("/api/antrian");
+      const jsonAntrian = await resAntrian.json();
+
+      if (jsonAntrian.success) {
+        // 2. Cek apakah ada antrean milik pasien ini yang statusnya masih MENUNGGU
+        const adaKunjunganMenunggu = jsonAntrian.data.some(
+          (antrean: any) =>
+            antrean.pasienId === deleteTarget && antrean.status === "MENUNGGU"
+        );
+
+        // 3. Jika ada, batalkan penghapusan dan munculkan notifikasi peringatan
+        if (adaKunjunganMenunggu) {
+          setDeleteTarget(null);
+          setNotif("Gagal! Pasien ini masih masuk dalam daftar antrean tunggu.");
+          setTimeout(() => setNotif(null), 4000);
+          return; // Stop fungsi di sini
+        }
+      }
+
+      // 4. Jika tidak ada antrean menggantung, lanjut hapus seperti biasa
       const res = await fetch(`/api/pasien/${deleteTarget}`, {
         method: "DELETE",
         headers: { "x-user-role": "ADMIN" },
       });
+      
       if (res.ok) {
         setDeleteTarget(null);
         fetchPasien();
+        setNotif("Berhasil! Data pasien telah dihapus permanen.");
+        setTimeout(() => setNotif(null), 3000);
       } else {
         alert("Gagal menghapus data");
       }
@@ -133,6 +198,8 @@ export default function DataPasienPage() {
       if (res.ok && json.success) {
         setShowForm(false);
         fetchPasien();
+        setNotif(isEdit ? "Mantap! Data pasien berhasil diperbarui." : "Berhasil! Pasien baru sukses ditambahkan.");
+        setTimeout(() => setNotif(null), 3000);
       } else {
         const errorMsg = json.details?.[0]?.message || json.error || "Gagal menyimpan";
         alert(errorMsg);
@@ -212,8 +279,9 @@ export default function DataPasienPage() {
                   <td className="p-4"><div className="h-8 bg-gray-100 rounded w-32 mx-auto"></div></td>
                 </tr>
               ))
-            ) : pasienList.length > 0 ? (
-              pasienList.map((pasien: any) => (
+            ) : pagedData.length > 0 ? (
+              // MAP DATA PAKAI pagedData BUKAN pasienList
+              pagedData.map((pasien: any) => (
                 <tr key={pasien.id} className="hover:bg-blue-50/50 transition-colors text-lg">
                   <td className="px-4 py-2.5 text-primary font-bold">{pasien.id || "-"}</td>
                   <td className="px-4 py-2.5 text-left capitalize">{pasien.nama}</td>
@@ -244,9 +312,32 @@ export default function DataPasienPage() {
             )}
           </tbody>
         </table>
+
+        {/* ========================================== */}
+        {/* COMPONENT PAGINATION DI BAWAH TABEL */}
+        {/* ========================================== */}
+        {!isTableLoading && pasienList.length > 0 && (
+          <div className="flex justify-center items-center gap-2 py-4 border-t border-gray-100">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="px-2 py-1 text-primary font-bold disabled:opacity-30"
+            >
+              &lt;
+            </button>
+            {renderPageButtons()}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="px-2 py-1 text-primary font-bold disabled:opacity-30"
+            >
+              &gt;
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* MODAL FORM & DELETE PERSIS SAMA */}
+      {/* MODAL FORM */}
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -257,13 +348,24 @@ export default function DataPasienPage() {
               <input type="text" placeholder="Nama Lengkap" required value={formData.nama} className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none" onChange={(e) => setFormData({ ...formData, nama: e.target.value })} />
               <div className="flex gap-4">
                 <select className="w-1/2 border-2 border-gray-100 p-3 rounded-xl outline-none" value={formData.jenisKelamin} onChange={(e) => setFormData({ ...formData, jenisKelamin: e.target.value })} required>
-                  <option value="" disabled>Pilih Kelamin</option>
+                  <option value="" disabled>Pilih Jenis Kelamin</option>
                   <option value="LAKI_LAKI">Laki-laki</option>
                   <option value="PEREMPUAN">Perempuan</option>
                 </select>
                 <input type="date" required value={formData.tanggalLahir} className="w-1/2 border-2 border-gray-100 p-3 rounded-xl outline-none" onChange={(e) => setFormData({ ...formData, tanggalLahir: e.target.value })} />
               </div>
-              <input type="text" placeholder="Nomor Telepon (Opsional)" value={formData.noTelepon} className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none" onChange={(e) => setFormData({ ...formData, noTelepon: e.target.value })} />
+              <input 
+                type="text" 
+                placeholder="Nomor Telepon (Opsional)" 
+                value={formData.noTelepon} 
+                maxLength={15}
+                className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none" 
+                onChange={(e) => {
+                  // Replace otomatis menghapus semua huruf/simbol yang diketik, sisa angka aja
+                  const onlyNums = e.target.value.replace(/\D/g, "");
+                  setFormData({ ...formData, noTelepon: onlyNums });
+                }} 
+              />              
               <textarea placeholder="Alamat Lengkap (Opsional)" value={formData.alamat} className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-primary outline-none h-24 resize-none" onChange={(e) => setFormData({ ...formData, alamat: e.target.value })} />
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-xl transition-all">Batal</button>
@@ -276,16 +378,33 @@ export default function DataPasienPage() {
         </div>
       )}
 
+      {/* MODAL DELETE */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-center animate-in zoom-in duration-200">
           <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full">
             <h3 className="text-2xl font-bold mb-2 text-black">Hapus Data?</h3>
             <p className="text-gray-500 mb-8 leading-relaxed">Data pasien yang dihapus tidak dapat dikembalikan. Apakah Anda yakin?</p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 font-bold text-gray-600 transition-colors">Batal</button>
+              <button 
+                onClick={() => {
+                  setDeleteTarget(null);
+                  setNotif("Aman! Data pasien tidak jadi dihapus.");
+                  setTimeout(() => setNotif(null), 3000);
+                }} 
+                className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 font-bold text-gray-600 transition-colors"
+              >
+                Batal
+              </button>
               <button onClick={executeDelete} className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 font-bold text-white shadow-lg transition-colors">Ya, Hapus</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {notif && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary  text-white px-6 py-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-3 border-2 font-bold text-sm animate-in fade-in slide-in-from-top-5 duration-300">
+          <span className="text-lg">ℹ️</span>
+          <span>{notif}</span>
         </div>
       )}
     </div>

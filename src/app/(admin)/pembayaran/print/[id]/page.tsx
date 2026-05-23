@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import PrintToolbar from "./PrintToolbar";
 
@@ -31,7 +32,23 @@ export default async function PrintStrukPage({
 }) {
   const { id } = await params;
 
-  // Tarik semua data yang dibutuhkan dari Database
+  // --- AMBIL DATA TINDAKAN MEDIS DARI BACKEND API ---
+  const headersList = await headers();
+  const host = headersList.get("host") || "localhost:3000";
+  const protocol = host.includes("localhost") ? "http" : "https";
+  
+  let pilihanTindakanFromBackend: any[] = [];
+  try {
+    const res = await fetch(`${protocol}://${host}/api/tindakan-medis`, {
+      cache: "no-store"
+    });
+    const json = await res.json();
+    if (json.success) pilihanTindakanFromBackend = json.data;
+  } catch (e) {
+    console.error("Gagal mengambil data tindakan medis dari backend:", e);
+  }
+  // --------------------------------------------------
+
   const pembayaran = await prisma.pembayaran.findUnique({
     where: { id },
     include: {
@@ -39,8 +56,8 @@ export default async function PrintStrukPage({
       rekamMedis: {
         include: {
           dokter: true,
-          diagnosis: true, // Tarik data diagnosis
-          resep: true,     // Tarik data obat
+          diagnosis: true,
+          resep: true,
         },
       },
     },
@@ -49,11 +66,15 @@ export default async function PrintStrukPage({
   if (!pembayaran) return notFound();
 
   const pasien = pembayaran.pasien;
-  const rekamMedis = pembayaran.rekamMedis;
+  const rekamMedis: any = pembayaran.rekamMedis;
   const dokter = rekamMedis?.dokter;
   const umur = pasien.tanggalLahir ? hitungUmur(pasien.tanggalLahir) : "";
+  const tglKunjunganRaw = rekamMedis?.tanggal || pembayaran.createdAt;
+  const tglKunjungan = tglKunjunganRaw ? formatTanggalIndo(new Date(tglKunjunganRaw)) : "-";
 
-  // Tentukan info rekening berdasarkan yang disimpan dari form
+  // Pecah teks tindakan koma (,) menjadi list array
+  const tindakanArray = rekamMedis?.tindakan ? rekamMedis.tindakan.split(", ") : [];
+
   let infoRekening = "CASH / TUNAI";
   if (pembayaran.metode === "TRANSFER_BCA") infoRekening = "Transfer BCA (1234567890 a.n Klinik RPL)";
   else if (pembayaran.metode === "TRANSFER_MANDIRI") infoRekening = "Transfer Mandiri (0987654321 a.n Klinik RPL)";
@@ -61,16 +82,15 @@ export default async function PrintStrukPage({
   else if (pembayaran.metode === "TRANSFER") infoRekening = "Transfer Bank";
 
   return (
-    <div className="print-root">
+    <div className="print-root text-black">
       <PrintToolbar />
 
       <div className="paper">
-        {/* KOP KLINIK (Sama seperti Rujukan) */}
         <div className="kop">
           <div className="kop-logo">
             <Image src="/logo.svg" alt="Logo Klinik" width={72} height={72} priority />
           </div>
-          <div className="kop-text">
+          <div className="kop-text text-black">
             <div className="kop-title">Klinik dr.Yofli</div>
             <div className="kop-line">
               <b>Lokasi 1 (Dramaga):</b> Jl. Cangkurawok, RT.01/RW.08, Babakan, Kec. Dramaga, Bogor.
@@ -87,13 +107,17 @@ export default async function PrintStrukPage({
 
         <div className="divider" />
 
-        {/* Header Surat */}
         <div className="surat-header">
           <div className="surat-title">BUKTI PEMBAYARAN</div>
           <div className="meta">
             <div>
               <span className="label">No. Transaksi</span>
               <span className="value">{pembayaran.id.split("-")[0].toUpperCase()}</span>
+            </div>
+            {/* --- TAMBAHKAN TANGGAL KUNJUNGAN DI SINI --- */}
+            <div>
+              <span className="label">Tgl Kunjungan</span>
+              <span className="value">{tglKunjungan}</span>
             </div>
             <div>
               <span className="label">Tanggal Cetak</span>
@@ -106,7 +130,6 @@ export default async function PrintStrukPage({
           </div>
         </div>
 
-        {/* Data Pasien */}
         <div className="section">
           <div className="section-title">Data Pasien</div>
           <div className="grid">
@@ -129,7 +152,6 @@ export default async function PrintStrukPage({
           </div>
         </div>
 
-        {/* Rincian Medis (Diagnosis & Obat) */}
         <div className="section mt-6">
           <div className="section-title border-b border-gray-300 pb-1 mb-3">Rincian Pemeriksaan & Obat</div>
           
@@ -137,8 +159,8 @@ export default async function PrintStrukPage({
             <div className="font-bold text-[13px] mb-1">Hasil Diagnosis:</div>
             {rekamMedis?.diagnosis && rekamMedis.diagnosis.length > 0 ? (
               <ul className="pl-4 m-0" style={{ fontSize: "12.5px" }}>
-                {rekamMedis.diagnosis.map((d, i) => (
-                  <li key={i}>{d.deskripsi}</li>
+                {rekamMedis.diagnosis.map((d: any, i: number) => (
+                  <li key={i}>{d.diagnosis || d.deskripsi}</li>
                 ))}
               </ul>
             ) : (
@@ -146,36 +168,57 @@ export default async function PrintStrukPage({
             )}
           </div>
 
+          <div className="mb-4">
+            <div className="font-bold text-[13px] mb-1">Tindakan Medis:</div>
+            {tindakanArray.length > 0 ? (
+              <ul className="pl-4 m-0 space-y-1 w-[80%]" style={{ fontSize: "12.5px" }}>
+                {tindakanArray.map((tindakan: string, i: number) => {
+                  // Mencocokkan teks tindakan dengan list harga dari backend API
+                  const dataTindakan = pilihanTindakanFromBackend.find(pt => pt.label === tindakan);
+                  return (
+                    <li key={i} className="flex justify-between border-b border-gray-100 pb-1">
+                      <span>{tindakan}</span>
+                      <span className="font-semibold">
+                        {dataTindakan ? `Rp ${dataTindakan.harga.toLocaleString('id-ID')}` : "-"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="text-[12.5px] italic text-gray-500">- Tidak ada tindakan.</div>
+            )}
+          </div>
+
           <div>
-            <div className="font-bold text-[13px] mb-2">Resep Obat / Tindakan:</div>
+            <div className="font-bold text-[13px] mb-2">Resep Obat:</div>
             {rekamMedis?.resep && rekamMedis.resep.length > 0 ? (
               <table className="table-obat">
                 <thead>
                   <tr>
                     <th style={{ width: "40px", textAlign: "center" }}>No</th>
-                    <th>Nama Obat / Tindakan</th>
-                    <th>Dosis</th>
+                    <th>Nama Obat</th>
+                    <th>Jumlah</th>
                     <th>Aturan Pakai</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rekamMedis.resep.map((r, i) => (
+                  {rekamMedis.resep.map((r: any, i: number) => (
                     <tr key={i}>
                       <td style={{ textAlign: "center" }}>{i + 1}</td>
-                      <td>{r.namaObat}</td>
+                      <td>{r.obatId || r.namaObat}</td>
                       <td>{r.dosis}</td>
-                      <td>{r.aturanPakai}</td>
+                      <td>{r.aturan || r.aturanPakai}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             ) : (
-              <div className="text-[12.5px] italic text-gray-500">- Tidak ada obat atau tindakan khusus.</div>
+              <div className="text-[12.5px] italic text-gray-500">- Tidak ada resep obat.</div>
             )}
           </div>
         </div>
 
-        {/* Rincian Biaya */}
         <div className="section mt-8 pt-4 border-t-2 border-black">
           <div className="flex justify-between items-center mb-3">
             <div className="text-lg font-black tracking-wider">GRAND TOTAL</div>
@@ -188,12 +231,11 @@ export default async function PrintStrukPage({
             </div>
             <div className="row">
               <div className="cell label text-gray-600">Status Pembayaran</div>
-              <div className="cell font-bold text-green-700">: LUNAS</div>
+              <div className="cell font-bold text-green-700">: {pembayaran.status}</div>
             </div>
           </div>
         </div>
 
-        {/* Penutup + TTD */}
         <div className="penutup">
           <div>Terima kasih atas kunjungan Anda. Semoga lekas sembuh!</div>
           <div className="ttd">
@@ -207,34 +249,11 @@ export default async function PrintStrukPage({
         </div>
       </div>
 
-      {/* Styles (Menggabungkan bawaan Rujukan + style Tabel) */}
       <style>{`
         .print-root {
           padding: 16px;
           background: #f5f5f5;
           min-height: 100vh;
-        }
-        .toolbar {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 12px;
-        }
-        .btn {
-          border: 1px solid #111;
-          background: #111;
-          color: white;
-          padding: 8px 12px;
-          border-radius: 8px;
-          font-size: 14px;
-          cursor: pointer;
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .btn.secondary {
-          background: white;
-          color: #111;
         }
         .paper {
           width: 210mm;
@@ -281,7 +300,7 @@ export default async function PrintStrukPage({
         }
         .meta > div {
           display: grid;
-          grid-template-columns: 76px 1fr;
+          grid-template-columns: 90px 1fr;
           gap: 8px;
           margin-bottom: 4px;
         }
@@ -320,9 +339,6 @@ export default async function PrintStrukPage({
         .table-obat th {
           background-color: #f9f9f9;
         }
-        .flex { display: flex; }
-        .justify-between { justify-content: space-between; }
-        .items-center { align-items: center; }
         .penutup {
           margin-top: 28px;
           font-size: 12.5px;

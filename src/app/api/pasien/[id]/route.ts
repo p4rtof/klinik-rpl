@@ -8,6 +8,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const role = request.headers.get("x-user-role");
+    if (role !== "ADMIN" && role !== "DOKTER") {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 },
+      );
+    }
+
     const { id } = await params;
     const pasien = await prisma.pasien.findUnique({
       where: { id },
@@ -38,7 +46,6 @@ export async function GET(
 }
 
 // PUT /api/pasien/[id]
-// Body: field yang ingin diubah (semua opsional)
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -60,7 +67,7 @@ export async function PUT(
         {
           success: false,
           error: "Data tidak valid",
-          details: parseResult.error.errors,
+          details: parseResult.error.format(),
         },
         { status: 400 },
       );

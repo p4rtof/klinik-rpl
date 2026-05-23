@@ -12,7 +12,6 @@ function formatTanggalIndo(date: Date) {
 }
 
 function hitungUmur(tanggalLahirYYYYMMDD: string) {
-  // tanggalLahir di schema kamu string "YYYY-MM-DD"
   const [y, m, d] = tanggalLahirYYYYMMDD.split("-").map(Number);
   if (!y || !m || !d) return "";
   const birth = new Date(y, m - 1, d);
@@ -23,6 +22,12 @@ function hitungUmur(tanggalLahirYYYYMMDD: string) {
     (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
   if (!hasHadBirthdayThisYear) age--;
   return `${age} tahun`;
+}
+
+function fmtJK(jk: string) {
+  if (jk === "LAKI_LAKI") return "Laki-laki";
+  if (jk === "PEREMPUAN") return "Perempuan";
+  return jk || "-";
 }
 
 export default async function PrintRujukanPage({
@@ -39,28 +44,32 @@ export default async function PrintRujukanPage({
         include: {
           pasien: true,
           dokter: true,
+          diagnosis: { orderBy: { createdAt: "desc" }, take: 1 },
         },
       },
     },
   });
 
-  if (!rujukan) return notFound();
+  if (!rujukan || !rujukan.rekamMedis) return notFound();
 
-  const pasien = rujukan.rekamMedis.pasien;
-  const dokter = rujukan.rekamMedis.dokter;
+  const rm = rujukan.rekamMedis;
+  const pasien = rm.pasien;
+  const dokter = rm.dokter;
 
+  const diagnosaDokter = rm.diagnosis?.[0]?.diagnosis ?? "-";
   const umur = pasien.tanggalLahir ? hitungUmur(pasien.tanggalLahir) : "";
 
   return (
-    <div className="print-root">
-     <PrintToolbar />
+    <div className="print-root text-black">
+      <PrintToolbar />
 
       <div className="paper">
-        {/* KOP */}
+        {/* ===================== KOP ===================== */}
         <div className="kop">
           <div className="kop-logo">
-            <Image src="/logo.svg" alt="Logo Klinik" width={72} height={72} priority />
+            <Image src="/logo.svg" alt="Logo Klinik" width={88} height={88} priority />
           </div>
+
           <div className="kop-text">
             <div className="kop-title">Klinik dr.Yofli</div>
             <div className="kop-line">
@@ -78,29 +87,29 @@ export default async function PrintRujukanPage({
 
         <div className="divider" />
 
-        {/* Header Surat */}
+        {/* ===================== HEADER SURAT ===================== */}
         <div className="surat-header">
           <div className="surat-title">SURAT RUJUKAN</div>
 
           <div className="meta">
-            <div>
-              <span className="label">No. Surat</span>
-              <span className="value">{rujukan.nomorSurat ?? "-"}</span>
+            <div className="meta-row">
+              <div className="meta-label">No. Surat</div>
+              <div className="meta-value">: {rujukan.nomorSurat ?? "-"}</div>
             </div>
-            <div>
-              <span className="label">Tanggal</span>
-              <span className="value">{formatTanggalIndo(rujukan.tanggalRujukan)}</span>
+            <div className="meta-row">
+              <div className="meta-label">Tanggal</div>
+              <div className="meta-value">: {formatTanggalIndo(new Date(rujukan.tanggalRujukan))}</div>
             </div>
-            <div>
-              <span className="label">Status</span>
-              <span className="value">{rujukan.status}</span>
+            <div className="meta-row">
+              <div className="meta-label">Status</div>
+              <div className="meta-value">: {rujukan.status}</div>
             </div>
           </div>
         </div>
 
-        {/* Data Pasien */}
+        {/* ===================== DATA PASIEN ===================== */}
         <div className="section">
-          <div className="section-title">Data Pasien</div>
+          <div className="section-title">DATA PASIEN</div>
           <div className="grid">
             <div className="row">
               <div className="cell label">Nama</div>
@@ -112,7 +121,7 @@ export default async function PrintRujukanPage({
             </div>
             <div className="row">
               <div className="cell label">Jenis Kelamin</div>
-              <div className="cell">: {pasien.jenisKelamin}</div>
+              <div className="cell">: {fmtJK(pasien.jenisKelamin)}</div>
             </div>
             <div className="row">
               <div className="cell label">Tgl Lahir / Umur</div>
@@ -120,197 +129,223 @@ export default async function PrintRujukanPage({
                 : {pasien.tanggalLahir} {umur ? `(${umur})` : ""}
               </div>
             </div>
+            {pasien.noTelepon && (
+              <div className="row">
+                <div className="cell label">No. Telepon</div>
+                <div className="cell">: {pasien.noTelepon}</div>
+              </div>
+            )}
+            {pasien.alamat && (
+              <div className="row">
+                <div className="cell label">Alamat</div>
+                <div className="cell">: {pasien.alamat}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ===================== ANAMNESIS ===================== */}
+        <div className="section">
+          <div className="section-title">ANAMNESIS</div>
+          <div className="grid">
             <div className="row">
-              <div className="cell label">No. Telepon</div>
-              <div className="cell">: {pasien.noTelepon ?? "-"}</div>
+              <div className="cell label">Keluhan Utama</div>
+              <div className="cell">: {rm.anamnesisKeluhanUtama ?? "-"}</div>
             </div>
             <div className="row">
-              <div className="cell label">Alamat</div>
-              <div className="cell">: {pasien.alamat ?? "-"}</div>
+              <div className="cell label">Riwayat Penyakit Sekarang</div>
+              <div className="cell">: {rm.anamnesisRps ?? "-"}</div>
+            </div>
+            <div className="row">
+              <div className="cell label">Riwayat Penyakit Dahulu</div>
+              <div className="cell">: {rm.anamnesisRpd ?? "-"}</div>
+            </div>
+            <div className="row">
+              <div className="cell label">Riwayat Obat</div>
+              <div className="cell">: {rm.anamnesisRiwayatObat ?? "-"}</div>
+            </div>
+            <div className="row">
+              <div className="cell label">Riwayat Keluarga</div>
+              <div className="cell">: {rm.anamnesisRiwayatKeluarga ?? "-"}</div>
+            </div>
+            <div className="row">
+              <div className="cell label">Kebiasaan</div>
+              <div className="cell">: {rm.anamnesisKebiasaan ?? "-"}</div>
             </div>
           </div>
         </div>
 
-        {/* Isi Rujukan */}
+        {/* ===================== DIAGNOSIS & TINDAKAN ===================== */}
         <div className="section">
-          <div className="section-title">Rujukan</div>
+          <div className="section-title">DIAGNOSIS &amp; TINDAKAN</div>
           <div className="grid">
             <div className="row">
-              <div className="cell label">Tujuan</div>
+              <div className="cell label">Diagnosis</div>
+              <div className="cell">: {diagnosaDokter}</div>
+            </div>
+            <div className="row">
+              <div className="cell label">Tindakan</div>
+              <div className="cell">: {rm.tindakan ?? "-"}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ===================== KETERANGAN RUJUKAN ===================== */}
+        <div className="section rujukan-box">
+          <div className="section-title">KETERANGAN RUJUKAN</div>
+          <div className="grid">
+            <div className="row">
+              <div className="cell label">Dirujuk ke</div>
               <div className="cell">: {rujukan.tujuan}</div>
             </div>
-            <div className="row">
-              <div className="cell label">Poli Tujuan</div>
-              <div className="cell">: {rujukan.poliTujuan ?? "-"}</div>
-            </div>
+
+            {rujukan.poliTujuan && (
+              <div className="row">
+                <div className="cell label">Poli Tujuan</div>
+                <div className="cell">: {rujukan.poliTujuan}</div>
+              </div>
+            )}
+
             <div className="row">
               <div className="cell label">Diagnosa</div>
-              <div className="cell">: {rujukan.diagnosa ?? "-"}</div>
+              <div className="cell">: {diagnosaDokter}</div>
             </div>
+
             <div className="row">
               <div className="cell label">Keterangan</div>
               <div className="cell">: {rujukan.keterangan ?? "-"}</div>
             </div>
+
+            {rm.rujukanCatatan && (
+              <div className="row">
+                <div className="cell label">Catatan Rujukan</div>
+                <div className="cell">: {rm.rujukanCatatan}</div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Penutup + TTD */}
+        {/* ===================== PENUTUP & TTD ===================== */}
         <div className="penutup">
           <div>Demikian surat rujukan ini dibuat untuk dipergunakan sebagaimana mestinya.</div>
 
           <div className="ttd">
+            <div className="ttd-box" style={{ border: "none" }} />
             <div className="ttd-box">
-              <div>Dokter Pemeriksa</div>
+              <div style={{ textAlign: "center" }}>Dokter Pemeriksa</div>
               <div className="spacer" />
-              <div className="nama">( {dokter.namaLengkap ?? "................................"} )</div>
-            </div>
-            <div className="ttd-box">
-              <div>Stempel Klinik</div>
-              <div className="spacer stamp" />
+              <div className="nama">( {dokter?.namaLengkap ?? "................................"} )</div>
+              {dokter?.str && <div className="sub-nama">STR: {dokter.str}</div>}
+              {dokter?.sip && <div className="sub-nama">SIP: {dokter.sip}</div>}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Styles */}
+      {/* ===================== STYLES ===================== */}
       <style>{`
-        .print-root {
-          padding: 16px;
-          background: #f5f5f5;
-          min-height: 100vh;
-        }
-        .toolbar {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 12px;
-        }
-        .btn {
-          border: 1px solid #111;
-          background: #111;
-          color: white;
-          padding: 8px 12px;
-          border-radius: 8px;
-          font-size: 14px;
-          cursor: pointer;
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .btn.secondary {
-          background: white;
-          color: #111;
-        }
+        .print-root { padding: 16px; background: #f5f5f5; min-height: 100vh; }
         .paper {
           width: 210mm;
           min-height: 297mm;
           margin: 0 auto;
           background: white;
           color: #111;
-          padding: 16mm;
+          padding: 14mm 16mm;
           box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+          font-family: "Times New Roman", serif;
+          font-size: 12.5px;
         }
+
         .kop {
           display: grid;
-          grid-template-columns: 84px 1fr;
+          grid-template-columns: 96px 1fr;
           gap: 12px;
           align-items: center;
         }
-        .kop-title {
-          font-weight: 800;
-          font-size: 18px;
-          margin-bottom: 4px;
-        }
-        .kop-line {
-          font-size: 12px;
-          line-height: 1.3;
-        }
-        .divider {
-          border-top: 2px solid #111;
-          margin: 12px 0;
-        }
+        .kop-title { font-weight: 900; font-size: 18px; font-family: Arial, sans-serif; margin-bottom: 2px; }
+        .kop-line { font-size: 11.5px; line-height: 1.35; font-family: Arial, sans-serif; }
+        .divider { border-top: 2.5px solid #111; margin: 10px 0 12px; }
+
         .surat-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          gap: 12px;
+          gap: 16px;
+          margin-bottom: 8px;
         }
         .surat-title {
-          font-size: 20px;
-          font-weight: 800;
+          font-size: 18px;
+          font-weight: 900;
           letter-spacing: 0.5px;
+          font-family: Arial, sans-serif;
+          text-decoration: underline;
+          text-underline-offset: 3px;
         }
-        .meta {
-          font-size: 12px;
-          min-width: 220px;
-        }
-        .meta > div {
-          display: grid;
-          grid-template-columns: 76px 1fr;
-          gap: 8px;
-          margin-bottom: 4px;
-        }
-        .meta .label { color: #333; }
-        .meta .value { font-weight: 600; }
 
-        .section {
-          margin-top: 14px;
+        .meta {
+          font-size: 11.5px;
+          min-width: 240px;
+          font-family: Arial, sans-serif;
         }
+        .meta-row {
+          display: grid;
+          grid-template-columns: 80px 1fr;
+          gap: 6px;
+          margin-bottom: 3px;
+        }
+        .meta-label { color: #333; font-weight: 700; }
+        .meta-value { font-weight: 700; }
+
+        .section { margin-top: 12px; }
         .section-title {
-          font-weight: 800;
-          margin-bottom: 8px;
-          font-size: 14px;
-        }
-        .grid {
+          font-weight: 900;
           font-size: 12.5px;
+          font-family: Arial, sans-serif;
+          text-transform: uppercase;
+          border-bottom: 1px solid #ddd;
+          padding-bottom: 2px;
+          margin-bottom: 7px;
         }
+
+        .grid { font-size: 12px; }
         .row {
           display: grid;
-          grid-template-columns: 140px 1fr;
-          margin-bottom: 4px;
+          grid-template-columns: 170px 1fr;
+          margin-bottom: 3px;
         }
-        .cell.label {
-          font-weight: 600;
+        .cell.label { font-weight: 700; }
+
+        .rujukan-box {
+          background: #f7f8ff;
+          border: 1.5px solid #c9cfea;
+          border-radius: 10px;
+          padding: 10px 12px 6px;
+          margin-top: 12px;
         }
 
-        .penutup {
-          margin-top: 18px;
-          font-size: 12.5px;
-        }
+        .penutup { margin-top: 16px; font-size: 12px; font-family: Arial, sans-serif; }
         .ttd {
-          margin-top: 18px;
+          margin-top: 14px;
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 18px;
+          gap: 16px;
         }
         .ttd-box {
           border: 1px solid #111;
           border-radius: 10px;
           padding: 12px;
           min-height: 110px;
+          font-size: 12px;
         }
-        .spacer {
-          height: 54px;
-        }
-        .spacer.stamp {
-          border: 1px dashed #999;
-          border-radius: 8px;
-        }
-        .nama {
-          text-align: center;
-          font-weight: 700;
-        }
+        .spacer { height: 54px; }
+        .nama { text-align: center; font-weight: 900; margin-top: 4px; }
+        .sub-nama { text-align: center; font-size: 10.5px; color: #444; margin-top: 2px; }
 
         @media print {
           .no-print { display: none !important; }
           .print-root { background: white; padding: 0; }
-          .paper {
-            box-shadow: none;
-            width: auto;
-            min-height: auto;
-            margin: 0;
-            padding: 14mm;
-          }
+          .paper { box-shadow: none; width: auto; min-height: auto; margin: 0; padding: 12mm 14mm; }
         }
       `}</style>
     </div>

@@ -43,6 +43,10 @@ export interface ApiDokter {
   id: string;
   namaLengkap: string;
   spesialisasi: string | null;
+  noTelepon: string | null;
+  sip: string | null;
+  str: string | null;
+  fotoUrl: string | null;
 }
 
 export interface ApiAntrian {
@@ -65,23 +69,61 @@ export interface ApiResep {
   namaObat: string;
   dosis: string;
   aturanPakai: string;
+  jumlah: string | null;
 }
 
 export interface ApiRujukan {
   id: string;
   tujuan: string;
+  poliTujuan: string | null;
+  diagnosa: string | null;
   keterangan: string | null;
+  status: 'DRAFT' | 'FINAL';
 }
 
 export interface ApiRekamMedis {
   id: string;
   tanggal: string;
   keluhan: string;
-  tindakan: string | null;
+  
+  // Anamnesis
+  riwayatPenyakitSekarang?: string;
+  riwayatPenyakitDahulu?: string;
+  riwayatObat?: string;
+  riwayatKeluarga?: string;
+  kebiasaan?: string;
+
+  // Pemeriksaan Fisik
+  tdSistolik?: number;
+  tdDiastolik?: number;
+  nadi?: number;
+  rr?: number;
+  suhu?: number;
+  spo2?: number;
+  beratBadan?: number;
+  tinggiBadan?: number;
+  pemeriksaanFisik?: string;
+
+  // Edukasi & Catatan
+  edukasi?: string;
+  catatanTambahan?: string;
+
+  tindakan: ApiTindakan[];
   dokter: { namaLengkap: string; spesialisasi: string | null };
   diagnosis: ApiDiagnosis[];
   resep: ApiResep[];
   rujukan: ApiRujukan[];
+}
+
+export interface ApiTindakan {
+  id: string;
+  deskripsi: string;
+}
+
+export interface ApiTindakanStandar {
+  id: string;
+  label: string;
+  harga: number;
 }
 
 export interface ApiPembayaran {
@@ -92,7 +134,8 @@ export interface ApiPembayaran {
   jumlah: number;
   metode: 'TUNAI' | 'TRANSFER' | 'BPJS';
   status: 'BELUM_BAYAR' | 'LUNAS';
-  pasien: { noRm: string; nama: string };
+  pasien: { id: string; noRm: string; nama: string };
+  rekamMedis?: ApiRekamMedis;
 }
 
 // ================================================================
@@ -115,60 +158,33 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
 // AUTH
 // ================================================================
 
-/**
- * Login dengan username dan password.
- * Cookie JWT disimpan otomatis oleh browser setelah berhasil.
- * @throws Error jika username/password salah
- */
 export const login = (username: string, password: string) =>
   api<ApiUser>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   });
 
-/**
- * Ambil data user yang sedang login.
- * Gunakan di awal halaman untuk cek sesi aktif.
- * @throws Error jika belum login
- */
 export const getMe = () => api<ApiUser>('/api/auth/me');
 
-/**
- * Logout — hapus cookie JWT, sesi langsung tidak valid.
- * Setelah ini redirect ke /login.
- */
 export const logout = async (): Promise<void> => {
   await fetch('/api/auth/logout', { method: 'POST' });
 };
 
 // ================================================================
-// PASIEN  (Akses: ADMIN)
+// PASIEN  (Akses: ADMIN & DOKTER)
 // ================================================================
 
-/**
- * Ambil daftar semua pasien. Opsional: filter berdasarkan nama.
- * @param search - kata kunci nama pasien (opsional)
- */
-export const getPasienList = (search?: string) =>
-  api<ApiPasien[]>(
-    `/api/pasien${search ? `?search=${encodeURIComponent(search)}` : ''}`
-  );
+export const getPasienList = (search?: string, searchType: string = 'nama', sortBy: string = 'id') => {
+  const query = new URLSearchParams();
+  if (search) query.set('search', search);
+  query.set('searchType', searchType);
+  query.set('sortBy', sortBy);
+  return api<ApiPasien[]>(`/api/pasien?${query.toString()}`);
+};
 
-/**
- * Ambil detail satu pasien lengkap dengan riwayat rekam medis & pembayaran.
- * @param id - UUID pasien
- */
 export const getPasien = (id: string) =>
   api<ApiPasienDetail>(`/api/pasien/${id}`);
 
-/**
- * Tambah pasien baru. Nomor RM (noRm) di-generate otomatis oleh server.
- * @param data.nama          - nama lengkap pasien (wajib)
- * @param data.jenisKelamin  - 'LAKI_LAKI' | 'PEREMPUAN' (wajib)
- * @param data.tanggalLahir  - format 'YYYY-MM-DD' (wajib)
- * @param data.noTelepon     - nomor telepon (opsional)
- * @param data.alamat        - alamat lengkap (opsional)
- */
 export const createPasien = (data: {
   nama: string;
   jenisKelamin: 'LAKI_LAKI' | 'PEREMPUAN';
@@ -181,11 +197,6 @@ export const createPasien = (data: {
     body: JSON.stringify(data),
   });
 
-/**
- * Perbarui data pasien. Kirim hanya field yang ingin diubah.
- * @param id   - UUID pasien
- * @param data - field yang ingin diperbarui (semua opsional)
- */
 export const updatePasien = (
   id: string,
   data: Partial<{
@@ -201,10 +212,6 @@ export const updatePasien = (
     body: JSON.stringify(data),
   });
 
-/**
- * Hapus pasien beserta seluruh data terkait (rekam medis, antrian, pembayaran).
- * @param id - UUID pasien
- */
 export const deletePasien = (id: string) =>
   api<null>(`/api/pasien/${id}`, { method: 'DELETE' });
 
@@ -212,58 +219,57 @@ export const deletePasien = (id: string) =>
 // DOKTER  (Akses: Semua)
 // ================================================================
 
-/**
- * Ambil daftar semua dokter yang terdaftar.
- * Gunakan untuk mengisi dropdown pilihan dokter saat buat antrian.
- */
 export const getDokterList = () => api<ApiDokter[]>('/api/dokter');
 
-/**
- * Ambil detail satu dokter beserta daftar antrian hari ini.
- * @param id - UUID dokter
- */
 export const getDokter = (id: string) =>
   api<ApiDokter & { jadwal: ApiAntrian[] }>(`/api/dokter/${id}`);
+
+export const updateDokterProfile = (id: string, data: Partial<{
+  namaLengkap: string;
+  spesialisasi: string;
+  noTelepon: string;
+  sip: string;
+  str: string;
+  fotoUrl: string;
+}>) =>
+  api<ApiDokter>(`/api/dokter/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
 
 // ================================================================
 // ANTRIAN  (Akses: ADMIN & DOKTER)
 // ================================================================
 
-/**
- * Ambil daftar antrian. Default: antrian hari ini.
- * @param params.tanggal  - filter tanggal format 'YYYY-MM-DD' (opsional)
- * @param params.dokterId - filter berdasarkan dokter tertentu (opsional)
- */
-export const getAntrian = (params?: { tanggal?: string; dokterId?: string }) => {
+export const getAntrian = (params?: { 
+  tanggal?: string; 
+  tanggalMulai?: string; 
+  tanggalAkhir?: string; 
+  dokterId?: string;
+  sortBy?: string;
+}) => {
   const query = new URLSearchParams();
   if (params?.tanggal) query.set('tanggal', params.tanggal);
+  if (params?.tanggalMulai) query.set('tanggalMulai', params.tanggalMulai);
+  if (params?.tanggalAkhir) query.set('tanggalAkhir', params.tanggalAkhir);
   if (params?.dokterId) query.set('dokterId', params.dokterId);
+  if (params?.sortBy) query.set('sortBy', params.sortBy);
   const qs = query.toString();
   return api<ApiAntrian[]>(`/api/antrian${qs ? `?${qs}` : ''}`);
 };
 
-/**
- * Buat antrian baru untuk pasien. Nomor antrian dihitung otomatis.
- * @param data.pasienId - UUID pasien (wajib)
- * @param data.dokterId - UUID dokter (wajib)
- * @param data.jam      - format 'HH:MM', contoh: '09:00' (wajib)
- */
 export const createAntrian = (data: {
   pasienId: string;
   dokterId: string;
   jam: string;
+  tanggal?: string;
+  keluhan: string;
 }) =>
   api<ApiAntrian>('/api/antrian', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
-/**
- * Perbarui status antrian (MENUNGGU → DIPERIKSA → SELESAI / BATAL).
- * Dokter hanya bisa mengubah antrian miliknya sendiri.
- * @param id     - UUID antrian
- * @param status - status baru
- */
 export const updateStatusAntrian = (
   id: string,
   status: 'MENUNGGU' | 'DIPERIKSA' | 'SELESAI' | 'BATAL'
@@ -277,35 +283,39 @@ export const updateStatusAntrian = (
 // REKAM MEDIS  (Akses: DOKTER)
 // ================================================================
 
-/**
- * Simpan rekam medis pemeriksaan lengkap dalam satu request.
- * Jika jadwalId diisi, status antrian otomatis berubah menjadi SELESAI.
- * @param data.pasienId  - UUID pasien (wajib)
- * @param data.jadwalId  - UUID antrian, opsional
- * @param data.keluhan   - keluhan utama pasien (wajib)
- * @param data.tindakan  - tindakan medis yang dilakukan (opsional)
- * @param data.diagnosis - array minimal 1 item (wajib)
- * @param data.resep     - array obat yang diresepkan (opsional)
- * @param data.rujukan   - data rujukan jika diperlukan (opsional)
- */
 export const createRekamMedis = (data: {
   pasienId: string;
   jadwalId?: string;
   keluhan: string;
-  tindakan?: string;
+  riwayatPenyakitSekarang?: string;
+  riwayatPenyakitDahulu?: string;
+  riwayatObat?: string;
+  riwayatKeluarga?: string;
+  kebiasaan?: string;
+  tdSistolik?: number;
+  tdDiastolik?: number;
+  nadi?: number;
+  rr?: number;
+  suhu?: number;
+  spo2?: number;
+  beratBadan?: number;
+  tinggiBadan?: number;
+  pemeriksaanFisik?: string;
+  edukasi?: string;
+  catatanTambahan?: string;
+  tindakan?: string | string[];
   diagnosis: { deskripsi: string }[];
-  resep?: { namaObat: string; dosis: string; aturanPakai: string }[];
-  rujukan?: { tujuan: string; keterangan?: string };
+  resep?: { namaObat: string; dosis: string; aturanPakai: string; jumlah?: string }[];
+  rujukan?: { tujuan: string; poliTujuan?: string; diagnosa?: string; keterangan?: string };
+  biayaTindakan?: number;
 }) =>
   api<ApiRekamMedis>('/api/rekam-medis', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
-/**
- * Ambil seluruh riwayat rekam medis seorang pasien, urut terbaru dulu.
- * @param pasienId - UUID pasien
- */
+export const getTindakanMedis = () => api<ApiTindakanStandar[]>('/api/tindakan-medis');
+
 export const getRekamMedisPasien = (pasienId: string) =>
   api<ApiRekamMedis[]>(`/api/rekam-medis/pasien/${pasienId}`);
 
@@ -313,50 +323,36 @@ export const getRekamMedisPasien = (pasienId: string) =>
 // PEMBAYARAN  (Akses: ADMIN)
 // ================================================================
 
-/**
- * Ambil daftar pembayaran. Filter opsional berdasarkan pasien atau status.
- * @param params.pasienId - filter berdasarkan UUID pasien (opsional)
- * @param params.status   - 'BELUM_BAYAR' | 'LUNAS' (opsional)
- */
-export const getPembayaran = (params?: {
+export const getPembayaranList = (params?: {
   pasienId?: string;
   status?: 'BELUM_BAYAR' | 'LUNAS';
 }) => {
   const query = new URLSearchParams();
   if (params?.pasienId) query.set('pasienId', params.pasienId);
   if (params?.status) query.set('status', params.status);
-  const qs = query.toString();
-  return api<ApiPembayaran[]>(`/api/pembayaran${qs ? `?${qs}` : ''}`);
+  return api<ApiPembayaran[]>(`/api/pembayaran?${query.toString()}`);
 };
 
-/**
- * Buat transaksi pembayaran baru. Status awal otomatis: BELUM_BAYAR.
- * @param data.pasienId     - UUID pasien (wajib)
- * @param data.rekamMedisId - UUID rekam medis terkait (opsional)
- * @param data.jumlah       - total biaya dalam Rupiah, angka bulat (wajib)
- * @param data.metode       - 'TUNAI' | 'TRANSFER' | 'BPJS' (wajib)
- */
-export const createPembayaran = (data: {
-  pasienId: string;
-  rekamMedisId?: string;
-  jumlah: number;
-  metode: 'TUNAI' | 'TRANSFER' | 'BPJS';
-}) =>
-  api<ApiPembayaran>('/api/pembayaran', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+export const getPembayaranDetail = (id: string) => api<ApiPembayaran>(`/api/pembayaran/${id}`);
 
-/**
- * Tandai pembayaran sebagai LUNAS atau kembalikan ke BELUM_BAYAR.
- * @param id     - UUID pembayaran
- * @param status - 'LUNAS' | 'BELUM_BAYAR'
- */
-export const updateStatusPembayaran = (
+export const updatePembayaran = (
   id: string,
-  status: 'BELUM_BAYAR' | 'LUNAS'
+  data: Partial<{
+    status: 'BELUM_BAYAR' | 'LUNAS';
+    metode: 'TUNAI' | 'TRANSFER' | 'BPJS';
+    jumlah: number;
+  }>
 ) =>
   api<ApiPembayaran>(`/api/pembayaran/${id}`, {
     method: 'PUT',
+    body: JSON.stringify(data),
+  });
+
+export const deletePembayaran = (id: string) =>
+  api<null>(`/api/pembayaran/${id}`, { method: 'DELETE' });
+
+export const updateStatusRujukan = (id: string, status: 'DRAFT' | 'FINAL') =>
+  api<any>(`/api/rujukan/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify({ status }),
   });

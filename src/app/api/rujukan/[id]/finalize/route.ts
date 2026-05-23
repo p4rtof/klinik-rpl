@@ -39,11 +39,17 @@ export async function POST(
       return NextResponse.json({ success: true, data: rujukan });
     }
 
+    const body = await request.json().catch(() => ({}));
+
     const updated = await prisma.rujukan.update({
       where: { id },
       data: {
         status: "FINAL",
         nomorSurat: rujukan.nomorSurat ?? nomorSuratTimestamp(),
+        tujuan: body.tujuan ?? undefined,
+        poliTujuan: body.poliTujuan ?? undefined,
+        diagnosa: body.diagnosa ?? undefined,
+        keterangan: body.keterangan ?? undefined,
       },
     });
 
