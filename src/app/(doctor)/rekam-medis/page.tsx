@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-export default function RiwayatPasienPage() {
+function RiwayatPasienPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const antreanId = searchParams.get("id");
@@ -152,8 +152,32 @@ export default function RiwayatPasienPage() {
                           : "Tidak ada diagnosis"}
                       </p>
                     </div>
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Keluhan / Tindakan</p>
+                      <p className="text-sm font-bold text-gray-600 leading-relaxed">
+                        <span className="italic">"{h.keluhan || "Tidak ada catatan keluhan"}"</span>
+                        <br />
+                        <span className="text-gray-500 mt-1 block">Tindakan: {h.tindakan || "-"}</span>
+                      </p>
+                    </div>
                   </div>
                   <div className="space-y-3">
+                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl">
+                      <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-1">Resep Obat</p>
+                      <div className="text-sm font-black text-blue-900 leading-relaxed">
+                        {Array.isArray(h.resep) && h.resep.length > 0 ? (
+                          <ul className="list-disc ml-4 font-medium text-md">
+                            {h.resep.map((r: any) => (
+                              <li key={r.id}>
+                                <span className="font-bold">{r.obatId}</span> {r.dosis ? `- ${r.dosis}` : ""} <span className="italic text-blue-700">({r.aturan})</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="italic text-md">Tidak ada resep obat</span>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
                       <div>
                         <p className="text-md font-black text-gray-400 uppercase tracking-widest">Tujuan Rujukan</p>
@@ -237,5 +261,17 @@ export default function RiwayatPasienPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RiwayatPasienPage() {
+  return (
+    <React.Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 text-gray-500 font-bold">
+        Memuat Halaman...
+      </div>
+    }>
+      <RiwayatPasienPageContent />
+    </React.Suspense>
   );
 }

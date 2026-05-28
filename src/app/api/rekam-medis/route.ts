@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         data: {
           pasienId: data.pasienId,
           dokterId: userId!,
+          namaDokter: dokter.namaLengkap,
           jadwalId: data.jadwalId,
           keluhan: data.keluhan,
           tindakan: tindakanString,

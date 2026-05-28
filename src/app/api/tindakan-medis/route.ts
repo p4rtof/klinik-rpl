@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+// Daftar tindakan medis standar (disesuaikan dengan frontend)
 const PILIHAN_TINDAKAN = [
   { id: "T001", label: "Konsultasi Dokter Umum", harga: 50000 },
   { id: "T002", label: "Pemeriksaan Fisik Lengkap", harga: 75000 },

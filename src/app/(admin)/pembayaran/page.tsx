@@ -190,7 +190,6 @@ export default function PembayaranPage() {
       if (res.ok) {
         setIsEditOpen(false);
         fetchPembayaran();
-        // showNotif("success", "Transaksi berhasil diperbarui!");
         setNotif("Mantap! Transaksi berhasil diperbarui.");
         setTimeout(() => setNotif(null), 3000);
       }
@@ -466,17 +465,17 @@ export default function PembayaranPage() {
               <div className="flex justify-between border-b border-gray-100 pb-2"><p>ID Transaksi:</p><p className="text-indigo-600">{detailData.id.split("-")[0].toUpperCase()}</p></div>
               <div className="flex justify-between border-b border-gray-100 pb-2"><p>Pasien:</p><p className="uppercase">{detailData.pasien?.nama}</p></div>
               <div className="flex justify-between border-b border-gray-100 pb-2">
-  <p className="text-gray-700">Tanggal Kunjungan:</p>
-  <p className="font-bold">
-    {detailData?.rekamMedis?.tanggal || detailData?.tanggal || detailData?.createdAt
-      ? new Date(detailData.rekamMedis?.tanggal || detailData.tanggal || detailData.createdAt).toLocaleDateString("id-ID", {
-          day: "2-digit",
-          month: "long",
-          year: "numeric",
-        })
-      : "-"}
-  </p>
-</div>
+                <p className="text-gray-700">Tanggal Kunjungan:</p>
+                <p className="font-bold">
+                  {detailData?.rekamMedis?.tanggal || detailData?.tanggal || detailData?.createdAt
+                    ? new Date(detailData.rekamMedis?.tanggal || detailData.tanggal || detailData.createdAt).toLocaleDateString("id-ID", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })
+                    : "-"}
+                </p>
+              </div>
               <div className="flex justify-between border-b border-gray-100 pb-2"><p>Status:</p><p className={detailData.status === "LUNAS" ? "text-green-600" : "text-orange-500"}>{detailData.status === "LUNAS" ? "LUNAS" : "BELUM BAYAR"}</p></div>
               <div className="flex justify-between border-b border-gray-100 pb-2"><p>Metode:</p><p>{detailData.metode || "-"}</p></div>
               <div className="flex justify-between pt-2"><p className="text-gray-500">Total Biaya:</p><p className="text-xl font-black text-black">Rp {detailData.jumlah.toLocaleString('id-ID')}</p></div>
@@ -750,9 +749,9 @@ export default function PembayaranPage() {
           </div>
         </div>
       )}
-
       {notif && (
-      <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-white/10 animate-in fade-in slide-in-from-bottom-5 duration-300 font-bold text-sm">          <span className="text-lg">ℹ️</span>
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-white/10 animate-in fade-in slide-in-from-bottom-5 duration-300 font-bold text-sm">
+          <span className="text-lg">ℹ️</span>
           <span>{notif}</span>
         </div>
       )}

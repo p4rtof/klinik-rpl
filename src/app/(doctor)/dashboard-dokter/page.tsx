@@ -121,7 +121,6 @@ export default function DashboardDokterPage() {
       if (sortBy === "default") {
         if (a.status === "MENUNGGU" && b.status !== "MENUNGGU") return -1;
         if (a.status !== "MENUNGGU" && b.status === "MENUNGGU") return 1;
-        
         // 1. Urutkan berdasarkan tanggal terlama lebih dulu (pasien kemarin dipanggil duluan)
         const dateA = new Date(a.tanggal || 0).getTime();
         const dateB = new Date(b.tanggal || 0).getTime();

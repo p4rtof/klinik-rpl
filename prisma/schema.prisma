@@ -15,18 +15,20 @@ model User {
   id           String   @id @default(uuid())
   username     String   @unique
   password     String
-  role         String   // "ADMIN" | "DOKTER"
+  role         String // "ADMIN" | "DOKTER"
   namaLengkap  String
-  spesialisasi String?  // diisi jika role = DOKTER
+  spesialisasi String? // diisi jika role = DOKTER
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   jadwal     Jadwal[]
   rekamMedis RekamMedis[]
-  noTelepon String?
-  fotoUrl String?
-  sip     String?
-  str     String?
+  noTelepon  String?
+  fotoUrl    String?
+  sip        String?
+  str        String?
+
+  @@index([role])
 }
 
 // ============================================================
@@ -37,8 +39,8 @@ model Pasien {
   id           String   @id // Format: P0001, P0002, ... (generated di backend)
   noRm         String   @unique // Format: R0001, R0002, ... (generated di backend)
   nama         String
-  jenisKelamin String   // "LAKI_LAKI" | "PEREMPUAN"
-  tanggalLahir String   // format YYYY-MM-DD
+  jenisKelamin String // "LAKI_LAKI" | "PEREMPUAN"
+  tanggalLahir String // format YYYY-MM-DD
   noTelepon    String?
   alamat       String?
   createdAt    DateTime @default(now())
@@ -47,6 +49,9 @@ model Pasien {
   jadwal     Jadwal[]
   rekamMedis RekamMedis[]
   pembayaran Pembayaran[]
+
+  @@index([nama])
+  @@index([noTelepon])
 }
 
 // ============================================================
@@ -58,16 +63,21 @@ model Jadwal {
   pasienId     String
   dokterId     String
   tanggal      DateTime
-  jam          String   // e.g. "09:00"
+  jam          String // e.g. "09:00"
   nomorAntrian Int
-  keluhan      String? 
+  keluhan      String?
   status       String   @default("MENUNGGU") // MENUNGGU | DIPERIKSA | SELESAI | BATAL
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  pasien     Pasien @relation(fields: [pasienId], references: [id], onDelete: Cascade)
-  dokter     User   @relation(fields: [dokterId], references: [id], onDelete: Cascade)
+  pasien     Pasien       @relation(fields: [pasienId], references: [id], onDelete: Cascade)
+  dokter     User         @relation(fields: [dokterId], references: [id], onDelete: Cascade)
   rekamMedis RekamMedis[]
+
+  @@index([pasienId])
+  @@index([dokterId])
+  @@index([tanggal])
+  @@index([status])
 }
 
 // ============================================================
@@ -78,50 +88,54 @@ model RekamMedis {
   id         String   @id @default(uuid())
   pasienId   String
   dokterId   String
-  namaDokter String?  // Snapshot nama dokter saat rekam medis dibuat
-  jadwalId   String?  // FK ke Jadwal (opsional)
+  namaDokter String? // Snapshot nama dokter saat rekam medis dibuat
+  jadwalId   String? // FK ke Jadwal (opsional)
   tanggal    DateTime @default(now())
   keluhan    String
 
   // === Tindakan (Simpel String sesuai Frontend Dokter) ===
-  tindakan   String?
-  
-  // === Anamnesis (Penamaan sesuai Friend's Frontend) ===
-  anamnesisKeluhanUtama String?
-  anamnesisRps          String?
-  anamnesisRpd          String?
-  anamnesisRiwayatObat  String?
-  anamnesisRiwayatKeluarga String?
-  anamnesisKebiasaan    String?
+  tindakan String?
 
-  // === Pemeriksaan / TTV (Penamaan sesuai Friend's Frontend) ===
-  tdSistolik  Int?
-  tdDiastolik Int?
-  nadi        Int?
-  rr          Int?
-  suhu        Float?
-  spo2        Int?
-  bb          Float?
-  tb          Float?
-  bmi         Float?
+  // === Anamnesis (Penamaan sesuai Frontend) ===
+  anamnesisKeluhanUtama    String?
+  anamnesisRps             String?
+  anamnesisRpd             String?
+  anamnesisRiwayatObat     String?
+  anamnesisRiwayatKeluarga String?
+  anamnesisKebiasaan       String?
+
+  // === Pemeriksaan / TTV (Penamaan sesuai Frontend) ===
+  tdSistolik       Int?
+  tdDiastolik      Int?
+  nadi             Int?
+  rr               Int?
+  suhu             Float?
+  spo2             Int?
+  bb               Float?
+  tb               Float?
+  bmi              Float?
   pemeriksaanFisik String?
 
-  // === Edukasi & Catatan (Penamaan sesuai Friend's Frontend) ===
-  edukasiPasien    String?
-  catatanTambahan  String?
-  rujukanCatatan   String?
+  // === Edukasi & Catatan (Penamaan sesuai Frontend) ===
+  edukasiPasien   String?
+  catatanTambahan String?
+  rujukanCatatan  String?
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  pasien     Pasien     @relation(fields: [pasienId], references: [id], onDelete: Cascade)
-  dokter     User       @relation(fields: [dokterId], references: [id], onDelete: Cascade)
-  jadwal     Jadwal?    @relation(fields: [jadwalId], references: [id])
-  
+  pasien Pasien  @relation(fields: [pasienId], references: [id], onDelete: Cascade)
+  dokter User    @relation(fields: [dokterId], references: [id], onDelete: Cascade)
+  jadwal Jadwal? @relation(fields: [jadwalId], references: [id])
+
   diagnosis  Diagnosis[]
   resep      Resep[]
-  rujukan    Rujukan?    @relation(name: "RMToRujukan")
+  rujukan    Rujukan?     @relation(name: "RMToRujukan")
   pembayaran Pembayaran[]
+
+  @@index([pasienId])
+  @@index([dokterId])
+  @@index([tanggal])
 }
 
 // ============================================================
@@ -135,6 +149,8 @@ model Diagnosis {
   createdAt    DateTime @default(now())
 
   rekamMedis RekamMedis @relation(fields: [rekamMedisId], references: [id], onDelete: Cascade)
+
+  @@index([rekamMedisId])
 }
 
 // ============================================================
@@ -147,10 +163,12 @@ model Resep {
   obatId       String
   dosis        String
   aturan       String
-  jumlah       String?  // e.g. "10 tablet"
+  jumlah       String? // e.g. "10 tablet"
   createdAt    DateTime @default(now())
 
   rekamMedis RekamMedis @relation(fields: [rekamMedisId], references: [id], onDelete: Cascade)
+
+  @@index([rekamMedisId])
 }
 
 // ============================================================
@@ -158,24 +176,24 @@ model Resep {
 // ============================================================
 
 model Rujukan {
-  id             String   @id @default(uuid())
-  rekamMedisId   String   @unique
+  id           String @id @default(uuid())
+  rekamMedisId String @unique
 
   nomorSurat     String?  @unique
   tanggalRujukan DateTime @default(now())
 
-  tujuan         String
-  poliTujuan     String?
-  diagnosa       String?
-  keterangan     String?
+  tujuan     String
+  poliTujuan String?
+  diagnosa   String?
+  keterangan String?
 
   // enum diganti string
-  status         String   @default("DRAFT") // DRAFT | FINAL
+  status String @default("DRAFT") // DRAFT | FINAL
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  rekamMedis     RekamMedis @relation(name: "RMToRujukan", fields: [rekamMedisId], references: [id], onDelete: Cascade)
+  rekamMedis RekamMedis @relation(name: "RMToRujukan", fields: [rekamMedisId], references: [id], onDelete: Cascade)
 
   @@index([rekamMedisId])
 }
@@ -190,11 +208,14 @@ model Pembayaran {
   rekamMedisId String?
   tanggal      DateTime @default(now())
   jumlah       Float
-  metode       String   // "TUNAI" | "TRANSFER" | "BPJS"
+  metode       String // "TUNAI" | "TRANSFER" | "BPJS"
   status       String   @default("BELUM_BAYAR") // "BELUM_BAYAR" | "LUNAS"
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   pasien     Pasien      @relation(fields: [pasienId], references: [id], onDelete: Cascade)
   rekamMedis RekamMedis? @relation(fields: [rekamMedisId], references: [id])
+
+  @@index([pasienId])
+  @@index([status])
 }

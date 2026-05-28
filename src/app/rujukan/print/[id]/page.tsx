@@ -198,14 +198,12 @@ export default async function PrintRujukanPage({
               <div className="cell label">Dirujuk ke</div>
               <div className="cell">: {rujukan.tujuan}</div>
             </div>
-
             {rujukan.poliTujuan && (
               <div className="row">
                 <div className="cell label">Poli Tujuan</div>
                 <div className="cell">: {rujukan.poliTujuan}</div>
               </div>
             )}
-
             <div className="row">
               <div className="cell label">Diagnosa</div>
               <div className="cell">: {diagnosaDokter}</div>

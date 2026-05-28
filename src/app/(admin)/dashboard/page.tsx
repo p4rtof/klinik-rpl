@@ -955,7 +955,7 @@ export default function DashboardPage() {
                     setShowDeleteModal(false);
                     setDeleteTargetId(null);
                     setNotif(
-                      "Kunjungan tidak jadi dihapus dan tetap berada pada antrean.",
+                      "Kunjungan tidak jadi dihapus and tetap berada pada antrean.",
                     );
                     setTimeout(() => setNotif(null), 3500);
                   }}
@@ -975,7 +975,6 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-
       {notif && (
         <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-white/10 animate-in fade-in slide-in-from-bottom-5 duration-300 font-bold text-sm">
           {" "}
