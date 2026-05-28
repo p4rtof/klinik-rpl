@@ -22,7 +22,24 @@ export async function GET(
       include: {
         rekamMedis: {
           orderBy: { tanggal: "desc" },
-          include: { diagnosis: true, resep: true, rujukan: true },
+          include: { 
+            dokter: {
+              select: {
+                namaLengkap: true,
+                poli: { select: { namaPoli: true } }
+              }
+            },
+            diagnosis: {
+              include: { penyakit: true }
+            },
+            resep: {
+              include: { obat: true }
+            },
+            rekamMedisTindakan: {
+              include: { tindakan: true }
+            },
+            rujukan: true,
+          },
         },
         pembayaran: { orderBy: { tanggal: "desc" } },
       },
@@ -35,7 +52,47 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, data: pasien });
+    // Map relations to expected flat properties for frontend backward-compatibility
+    const mappedRekamMedis = pasien.rekamMedis.map((rm: any) => {
+      const flatRm = { ...rm };
+      if (flatRm.dokter) {
+        flatRm.dokter.spesialisasi = flatRm.dokter.poli?.namaPoli || "Umum";
+      }
+
+      if (flatRm.diagnosis) {
+        flatRm.diagnosis = flatRm.diagnosis.map((d: any) => ({
+          ...d,
+          diagnosis: d.penyakit?.namaPenyakit || d.catatan || ""
+        }));
+      }
+
+      if (flatRm.resep) {
+        flatRm.resep = flatRm.resep.map((r: any) => ({
+          ...r,
+          obatId: r.obat?.namaObat || r.obatId
+        }));
+      }
+
+      if (flatRm.rekamMedisTindakan) {
+        flatRm.tindakan = flatRm.rekamMedisTindakan.map((rt: any) => rt.tindakan?.namaTindakan).join(", ");
+      }
+
+      return flatRm;
+    });
+
+    // Also map pembayaran fields (jumlah to totalJumlah mapping if needed on client)
+    const mappedPembayaran = pasien.pembayaran.map((p: any) => ({
+      ...p,
+      jumlah: p.totalJumlah
+    }));
+
+    const mappedPasien = {
+      ...pasien,
+      rekamMedis: mappedRekamMedis,
+      pembayaran: mappedPembayaran
+    };
+
+    return NextResponse.json({ success: true, data: mappedPasien });
   } catch (error) {
     console.error("[GET /api/pasien/[id]]", error);
     return NextResponse.json(

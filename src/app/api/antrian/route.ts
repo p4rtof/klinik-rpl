@@ -17,7 +17,10 @@ export async function GET(request: Request) {
     // Auto-filter dokterId jika login sebagai DOKTER
     let dokterId = searchParams.get("dokterId");
     if (role === "DOKTER" && !dokterId) {
-      dokterId = userId;
+      const docProfile = await prisma.dokter.findUnique({
+        where: { userId: userId! }
+      });
+      dokterId = docProfile ? docProfile.id : "";
     }
 
     let dateFilter = {};
@@ -47,9 +50,6 @@ export async function GET(request: Request) {
     // Tentukan order by
     let orderBy: any = [{ tanggal: "asc" }, { nomorAntrian: "asc" }];
     if (sortBy === "status") {
-      // Prisma tidak support custom sort order secara native di orderBy untuk SQLite dengan mudah tanpa raw query
-      // Kita lakukan di aplikasi atau gunakan multiple fields
-      // Untuk kemudahan, kita prioritaskan status tertentu jika dibutuhkan, tapi sementara kita sort by status string ASC
       orderBy = [{ status: "asc" }, { tanggal: "asc" }, { nomorAntrian: "asc" }];
     }
 
@@ -69,12 +69,26 @@ export async function GET(request: Request) {
             tanggalLahir: true,
           },
         },
-        dokter: { select: { id: true, namaLengkap: true, spesialisasi: true } },
+        dokter: {
+          select: {
+            id: true,
+            namaLengkap: true,
+            poli: { select: { namaPoli: true } }
+          }
+        },
       },
       orderBy,
     });
 
-    return NextResponse.json({ success: true, data: antrian });
+    // Remap spesialisasi field for compatibility with older frontend components
+    const mappedAntrian = antrian.map((a: any) => {
+      if (a.dokter) {
+        a.dokter.spesialisasi = a.dokter.poli?.namaPoli || "Umum";
+      }
+      return a;
+    });
+
+    return NextResponse.json({ success: true, data: mappedAntrian });
   } catch (error) {
     console.error("[GET /api/antrian]", error);
     return NextResponse.json(
@@ -116,17 +130,15 @@ export async function POST(request: Request) {
     // Validasi jam jika tanggal hari ini
     if (checkTanggal.getTime() === today.getTime() && body.jam) {
       const now = new Date();
-      now.setSeconds(0, 0); // Abaikan detik dan milidetik untuk perbandingan yang adil
+      now.setSeconds(0, 0);
       const [hour, minute] = body.jam.split(':').map(Number);
       const scheduledTime = new Date();
       scheduledTime.setHours(hour, minute, 0, 0);
       
-      // Jika jam terlewat, cek selisihnya.
       if (scheduledTime < now) {
         const diffInMinutes = (now.getTime() - scheduledTime.getTime()) / (1000 * 60);
         
         if (diffInMinutes <= 10) {
-          // Masih dalam toleransi 10 menit, ubah jam ke jam sekarang agar valid
           const currentHour = now.getHours().toString().padStart(2, '0');
           const currentMinute = now.getMinutes().toString().padStart(2, '0');
           body.jam = `${currentHour}:${currentMinute}`;
@@ -136,14 +148,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // Bikin batasan waktu pencarian dari 00:00 sampai 23:59 di tanggal yang DIPILIH
     const startOfDay = new Date(targetTanggal);
     startOfDay.setHours(0, 0, 0, 0);
 
     const endOfDay = new Date(targetTanggal);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // 2. Hitung jumlah antrean HANYA pada tanggal yang dipilih supaya nomornya akurat
     const count = await prisma.jadwal.count({
       where: {
         tanggal: {
@@ -155,11 +165,17 @@ export async function POST(request: Request) {
 
     const nomorAntrian = count + 1;
 
+    // Cari poliId dari Dokter
+    const docProfile = await prisma.dokter.findUnique({
+      where: { id: body.dokterId }
+    });
+
     // 3. Simpan ke database dengan tanggal yang benar
     const newJadwal = await prisma.jadwal.create({
       data: {
         pasienId: body.pasienId,
         dokterId: body.dokterId,
+        poliId: docProfile?.poliId || null,
         keluhan: body.keluhan,
         jam: body.jam,
         tanggal: targetTanggal,

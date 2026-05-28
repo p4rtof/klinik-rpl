@@ -27,11 +27,26 @@ export async function GET(
             alamat: true,
           }
         },
+        detailPembayaran: true,
         rekamMedis: {
           include: {
-            dokter: { select: { namaLengkap: true, spesialisasi: true } },
-            diagnosis: true,
-            resep: true,
+            dokter: {
+              select: {
+                namaLengkap: true,
+                sip: true,
+                str: true,
+                poli: { select: { namaPoli: true } }
+              }
+            },
+            diagnosis: {
+              include: { penyakit: true }
+            },
+            resep: {
+              include: { obat: true }
+            },
+            rekamMedisTindakan: {
+              include: { tindakan: true }
+            },
             rujukan: true,
           },
         },
@@ -71,13 +86,13 @@ export async function PUT(
       data: {
         status: body.status,
         metode: body.metode || undefined,
-        jumlah: body.jumlah !== undefined ? Number(body.jumlah) : undefined,
+        totalJumlah: body.jumlah !== undefined ? Number(body.jumlah) : undefined,
       },
       include: {
         pasien: { select: { id: true, noRm: true, nama: true } },
         rekamMedis: {
           include: {
-            diagnosis: true,
+            diagnosis: { include: { penyakit: true } },
             rujukan: true,
           },
         },

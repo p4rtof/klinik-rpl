@@ -44,7 +44,14 @@ export default async function PrintRujukanPage({
         include: {
           pasien: true,
           dokter: true,
-          diagnosis: { orderBy: { createdAt: "desc" }, take: 1 },
+          diagnosis: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            include: { penyakit: true }
+          },
+          rekamMedisTindakan: {
+            include: { tindakan: true }
+          },
         },
       },
     },
@@ -56,7 +63,8 @@ export default async function PrintRujukanPage({
   const pasien = rm.pasien;
   const dokter = rm.dokter;
 
-  const diagnosaDokter = rm.diagnosis?.[0]?.diagnosis ?? "-";
+  const diagnosaDokter = rm.diagnosis?.[0]?.penyakit?.namaPenyakit ?? rm.diagnosis?.[0]?.catatan ?? "-";
+  const tindakanString = rm.rekamMedisTindakan?.map((rt: any) => rt.tindakan?.namaTindakan).join(", ") || "-";
   const umur = pasien.tanggalLahir ? hitungUmur(pasien.tanggalLahir) : "";
 
   return (
@@ -185,7 +193,7 @@ export default async function PrintRujukanPage({
             </div>
             <div className="row">
               <div className="cell label">Tindakan</div>
-              <div className="cell">: {rm.tindakan ?? "-"}</div>
+              <div className="cell">: {tindakanString}</div>
             </div>
           </div>
         </div>

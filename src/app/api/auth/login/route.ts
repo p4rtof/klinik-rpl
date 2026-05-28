@@ -18,7 +18,14 @@ export async function POST(request: Request) {
     }
 
     const { username, password } = parseResult.data;
-    const user = await prisma.user.findUnique({ where: { username } });
+    const user = await prisma.user.findUnique({
+      where: { username },
+      include: {
+        dokter: {
+          include: { poli: true }
+        }
+      }
+    });
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return NextResponse.json({ success: false, error: 'Username atau password salah' }, { status: 401 });
@@ -31,6 +38,8 @@ export async function POST(request: Request) {
       namaLengkap: user.namaLengkap,
     });
 
+    const spesialisasiVal = user.dokter?.poli?.namaPoli || null;
+
     const response = NextResponse.json({
       success: true,
       message: 'Login berhasil',
@@ -39,7 +48,7 @@ export async function POST(request: Request) {
         username: user.username,
         role: user.role,          // "ADMIN" atau "DOKTER"
         namaLengkap: user.namaLengkap,
-        spesialisasi: user.spesialisasi,
+        spesialisasi: spesialisasiVal,
       },
     });
 

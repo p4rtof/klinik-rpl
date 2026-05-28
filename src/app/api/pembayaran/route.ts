@@ -27,7 +27,9 @@ export async function GET(request: Request) {
         rekamMedis: {
           select: {
             id: true,
-            diagnosis: true,
+            diagnosis: {
+              include: { penyakit: true }
+            },
             catatanTambahan: true,
             rujukan: {
               select: {
@@ -49,7 +51,23 @@ export async function GET(request: Request) {
       orderBy: { tanggal: "desc" },
     });
 
-    return NextResponse.json({ success: true, data: pembayaran });
+    // Map for frontend compatibility
+    const mapped = pembayaran.map((p: any) => {
+      const flatRm = p.rekamMedis ? { ...p.rekamMedis } : null;
+      if (flatRm && flatRm.diagnosis) {
+        flatRm.diagnosis = flatRm.diagnosis.map((d: any) => ({
+          ...d,
+          diagnosis: d.penyakit?.namaPenyakit || d.catatan || ""
+        }));
+      }
+      return {
+        ...p,
+        jumlah: p.totalJumlah,
+        rekamMedis: flatRm
+      };
+    });
+
+    return NextResponse.json({ success: true, data: mapped });
   } catch (error) {
     console.error("[GET /api/pembayaran]", error);
     return NextResponse.json(
@@ -63,7 +81,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const role = request.headers.get("x-user-role");
-    // DOKTER juga diizinkan membuat tagihan (otomatis dari periksa/page.tsx)
     if (role !== "ADMIN" && role !== "DOKTER") {
       return NextResponse.json(
         { success: false, error: "Forbidden" },
@@ -85,13 +102,21 @@ export async function POST(request: Request) {
     }
 
     const newPembayaran = await prisma.pembayaran.create({
-      data: parseResult.data,
+      data: {
+        pasienId: parseResult.data.pasienId,
+        rekamMedisId: parseResult.data.rekamMedisId,
+        totalJumlah: parseResult.data.totalJumlah,
+        metode: parseResult.data.metode,
+        status: "BELUM_BAYAR",
+      },
       include: {
         pasien: { select: { id: true, noRm: true, nama: true } },
         rekamMedis: {
           select: {
             id: true,
-            diagnosis: true,
+            diagnosis: {
+              include: { penyakit: true }
+            },
             catatanTambahan: true,
             rujukan: {
               select: {
@@ -112,10 +137,24 @@ export async function POST(request: Request) {
       },
     });
 
+    const flatRm = newPembayaran.rekamMedis ? { ...newPembayaran.rekamMedis } : null;
+    if (flatRm && flatRm.diagnosis) {
+      flatRm.diagnosis = flatRm.diagnosis.map((d: any) => ({
+        ...d,
+        diagnosis: d.penyakit?.namaPenyakit || d.catatan || ""
+      }));
+    }
+
+    const data = {
+      ...newPembayaran,
+      jumlah: newPembayaran.totalJumlah,
+      rekamMedis: flatRm
+    };
+
     return NextResponse.json(
       {
         success: true,
-        data: newPembayaran,
+        data,
         message: "Data pembayaran berhasil dibuat",
       },
       { status: 201 }

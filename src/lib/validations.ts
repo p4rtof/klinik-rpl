@@ -38,16 +38,16 @@ export const updateJadwalFullSchema = z.object({
 });
 
 // === REKAM MEDIS ===
-// Satu request POST berisi keluhan + diagnosis[] + resep[] + rujukan (opsional)
 export const diagnosisItemSchema = z.object({
-  diagnosis: z.string().min(1, 'Diagnosis wajib diisi'),
+  penyakitId: z.string().uuid('ID Penyakit (ICD-10) tidak valid'),
+  catatan: z.string().optional(),
 });
 
 export const resepItemSchema = z.object({
-  obatId: z.string().min(1, 'Nama obat wajib diisi'),
+  obatId: z.string().uuid('ID Obat tidak valid'),
   dosis: z.string().min(1, 'Dosis wajib diisi'),
   aturan: z.string().min(1, 'Aturan pakai wajib diisi'),
-  jumlah: z.string().optional(),
+  jumlah: z.number().int().positive('Jumlah obat minimal 1'),
 });
 
 export const rujukanItemSchema = z.object({
@@ -87,7 +87,7 @@ export const rekamMedisSchema = z.object({
   catatanTambahan: z.string().optional(),
   rujukanCatatan: z.string().optional(),
 
-  tindakan: z.union([z.string(), z.array(z.string())]).optional(),
+  tindakan: z.array(z.string().uuid('ID Tindakan tidak valid')).default([]),
   diagnosis: z.array(diagnosisItemSchema).min(1, 'Minimal 1 diagnosis wajib diisi'),
   resep: z.array(resepItemSchema).default([]),
   rujukan: rujukanItemSchema.optional(),
@@ -97,7 +97,7 @@ export const rekamMedisSchema = z.object({
 // === USER / DOKTER ===
 export const updateDokterSchema = z.object({
   namaLengkap: z.string().min(1, 'Nama lengkap wajib diisi').optional(),
-  spesialisasi: z.string().optional(),
+  poliId: z.string().uuid('ID Poli tidak valid').optional(),
   noTelepon: z.string().regex(/^[0-9]*$/, 'Hanya boleh berisi angka').max(15, 'Maksimal 15 digit').optional(),
   sip: z.string().optional(),
   str: z.string().optional(),
@@ -108,7 +108,7 @@ export const updateDokterSchema = z.object({
 export const pembayaranSchema = z.object({
   pasienId: z.string().min(1, 'ID Pasien wajib diisi'),
   rekamMedisId: z.string().uuid('ID Rekam Medis tidak valid').optional(),
-  jumlah: z.number().positive('Jumlah harus lebih dari 0'),
+  totalJumlah: z.number().positive('Jumlah harus lebih dari 0'),
   metode: z.enum(['TUNAI', 'TRANSFER', 'BPJS']),
 });
 
@@ -117,7 +117,7 @@ export const updateStatusPembayaranSchema = z.object({
 });
 
 export const updatePembayaranSchema = z.object({
-  jumlah: z.number().positive('Jumlah harus lebih dari 0').optional(),
+  totalJumlah: z.number().positive('Jumlah harus lebih dari 0').optional(),
   metode: z.enum(['TUNAI', 'TRANSFER', 'BPJS']).optional(),
   status: z.enum(['BELUM_BAYAR', 'LUNAS']).optional(),
 });

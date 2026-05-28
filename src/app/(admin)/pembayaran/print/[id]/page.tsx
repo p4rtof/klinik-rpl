@@ -32,32 +32,20 @@ export default async function PrintStrukPage({
 }) {
   const { id } = await params;
 
-  // --- AMBIL DATA TINDAKAN MEDIS DARI BACKEND API ---
-  const headersList = await headers();
-  const host = headersList.get("host") || "localhost:3000";
-  const protocol = host.includes("localhost") ? "http" : "https";
-  
-  let pilihanTindakanFromBackend: any[] = [];
-  try {
-    const res = await fetch(`${protocol}://${host}/api/tindakan-medis`, {
-      cache: "no-store"
-    });
-    const json = await res.json();
-    if (json.success) pilihanTindakanFromBackend = json.data;
-  } catch (e) {
-    console.error("Gagal mengambil data tindakan medis dari backend:", e);
-  }
-  // --------------------------------------------------
-
   const pembayaran = await prisma.pembayaran.findUnique({
     where: { id },
     include: {
       pasien: true,
+      detailPembayaran: true,
       rekamMedis: {
         include: {
           dokter: true,
-          diagnosis: true,
-          resep: true,
+          diagnosis: {
+            include: { penyakit: true }
+          },
+          resep: {
+            include: { obat: true }
+          },
         },
       },
     },
@@ -71,9 +59,6 @@ export default async function PrintStrukPage({
   const umur = pasien.tanggalLahir ? hitungUmur(pasien.tanggalLahir) : "";
   const tglKunjunganRaw = rekamMedis?.tanggal || pembayaran.createdAt;
   const tglKunjungan = tglKunjunganRaw ? formatTanggalIndo(new Date(tglKunjunganRaw)) : "-";
-
-  // Pecah teks tindakan koma (,) menjadi list array
-  const tindakanArray = rekamMedis?.tindakan ? rekamMedis.tindakan.split(", ") : [];
 
   let infoRekening = "CASH / TUNAI";
   if (pembayaran.metode === "TRANSFER_BCA") infoRekening = "Transfer BCA (1234567890 a.n Klinik RPL)";
@@ -114,7 +99,6 @@ export default async function PrintStrukPage({
               <span className="label">No. Transaksi</span>
               <span className="value">{pembayaran.id.split("-")[0].toUpperCase()}</span>
             </div>
-            {/* --- TAMBAHKAN TANGGAL KUNJUNGAN DI SINI --- */}
             <div>
               <span className="label">Tgl Kunjungan</span>
               <span className="value">{tglKunjungan}</span>
@@ -152,77 +136,55 @@ export default async function PrintStrukPage({
           </div>
         </div>
 
-        <div className="section mt-6">
-          <div className="section-title border-b border-gray-300 pb-1 mb-3">Rincian Pemeriksaan & Obat</div>
-          
-          <div className="mb-4">
-            <div className="font-bold text-[13px] mb-1">Hasil Diagnosis:</div>
-            {rekamMedis?.diagnosis && rekamMedis.diagnosis.length > 0 ? (
-              <ul className="pl-4 m-0" style={{ fontSize: "12.5px" }}>
-                {rekamMedis.diagnosis.map((d: any, i: number) => (
-                  <li key={i}>{d.diagnosis || d.deskripsi}</li>
-                ))}
-              </ul>
-            ) : (
-              <div className="text-[12.5px] italic text-gray-500">- Tidak ada catatan diagnosis.</div>
-            )}
-          </div>
-
-          <div className="mb-4">
-            <div className="font-bold text-[13px] mb-1">Tindakan Medis:</div>
-            {tindakanArray.length > 0 ? (
-              <ul className="pl-4 m-0 space-y-1 w-[80%]" style={{ fontSize: "12.5px" }}>
-                {tindakanArray.map((tindakan: string, i: number) => {
-                  // Mencocokkan teks tindakan dengan list harga dari backend API
-                  const dataTindakan = pilihanTindakanFromBackend.find(pt => pt.label === tindakan);
-                  return (
-                    <li key={i} className="flex justify-between border-b border-gray-100 pb-1">
-                      <span>{tindakan}</span>
-                      <span className="font-semibold">
-                        {dataTindakan ? `Rp ${dataTindakan.harga.toLocaleString('id-ID')}` : "-"}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <div className="text-[12.5px] italic text-gray-500">- Tidak ada tindakan.</div>
-            )}
-          </div>
-
-          <div>
-            <div className="font-bold text-[13px] mb-2">Resep Obat:</div>
-            {rekamMedis?.resep && rekamMedis.resep.length > 0 ? (
-              <table className="table-obat">
-                <thead>
-                  <tr>
-                    <th style={{ width: "40px", textAlign: "center" }}>No</th>
-                    <th>Nama Obat</th>
-                    <th>Jumlah</th>
-                    <th>Aturan Pakai</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rekamMedis.resep.map((r: any, i: number) => (
-                    <tr key={i}>
-                      <td style={{ textAlign: "center" }}>{i + 1}</td>
-                      <td>{r.obatId || r.namaObat}</td>
-                      <td>{r.dosis}</td>
-                      <td>{r.aturan || r.aturanPakai}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="text-[12.5px] italic text-gray-500">- Tidak ada resep obat.</div>
-            )}
-          </div>
+        {/* Rincian Medis & Diagnosa */}
+        <div className="section mt-4">
+          <div className="font-bold text-[13px] mb-1">Hasil Diagnosis:</div>
+          {rekamMedis?.diagnosis && rekamMedis.diagnosis.length > 0 ? (
+            <ul className="pl-4 m-0" style={{ fontSize: "12.5px" }}>
+              {rekamMedis.diagnosis.map((d: any, i: number) => (
+                <li key={i}>
+                  <span className="font-bold">[{d.penyakit?.kodeIcd10}]</span> {d.penyakit?.namaPenyakit || d.catatan}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-[12.5px] italic text-gray-500">- Tidak ada catatan diagnosis.</div>
+          )}
         </div>
 
-        <div className="section mt-8 pt-4 border-t-2 border-black">
+        {/* Tabel Invoice Itemized */}
+        <div className="section mt-4">
+          <div className="section-title border-b border-gray-300 pb-1 mb-2">Rincian Invoice Layanan & Obat</div>
+          <table className="table-obat">
+            <thead>
+              <tr>
+                <th style={{ width: "40px", textAlign: "center" }}>No</th>
+                <th>Deskripsi Layanan / Obat</th>
+                <th style={{ textAlign: "right", width: "110px" }}>Harga Satuan</th>
+                <th style={{ textAlign: "center", width: "80px" }}>Qty</th>
+                <th style={{ textAlign: "right", width: "120px" }}>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pembayaran.detailPembayaran.map((item: any, i: number) => (
+                <tr key={item.id}>
+                  <td style={{ textAlign: "center" }}>{i + 1}</td>
+                  <td>
+                    <span className="font-bold text-[10px] text-blue-800 uppercase">[{item.tipeItem}]</span> {item.namaItem}
+                  </td>
+                  <td style={{ textAlign: "right" }}>Rp {item.hargaSatuan.toLocaleString('id-ID')}</td>
+                  <td style={{ textAlign: "center" }}>{item.kuantitas}</td>
+                  <td style={{ textAlign: "right" }} className="font-semibold">Rp {item.subtotal.toLocaleString('id-ID')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="section mt-6 pt-4 border-t-2 border-black">
           <div className="flex justify-between items-center mb-3">
             <div className="text-lg font-black tracking-wider">GRAND TOTAL</div>
-            <div className="text-2xl font-black">Rp {pembayaran.jumlah.toLocaleString('id-ID')}</div>
+            <div className="text-2xl font-black">Rp {pembayaran.totalJumlah.toLocaleString('id-ID')}</div>
           </div>
           <div className="grid mt-2 text-[13px]">
             <div className="row">
@@ -300,7 +262,7 @@ export default async function PrintStrukPage({
         }
         .meta > div {
           display: grid;
-          grid-template-columns: 90px 1fr;
+          grid-template-columns: 110px 1fr;
           gap: 8px;
           margin-bottom: 4px;
         }

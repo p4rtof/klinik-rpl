@@ -2,17 +2,24 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/dokter
-// Mengembalikan semua dokter (user dengan role DOKTER)
+// Mengembalikan semua dokter dari profile Dokter
 // Gunakan untuk dropdown pilihan dokter saat mendaftarkan antrian
 export async function GET() {
   try {
-    const dokter = await prisma.user.findMany({
-      where: { role: "DOKTER" },
-      select: { id: true, namaLengkap: true, spesialisasi: true },
+    const dokterList = await prisma.dokter.findMany({
+      include: {
+        poli: true
+      },
       orderBy: { namaLengkap: "asc" },
     });
 
-    return NextResponse.json({ success: true, data: dokter });
+    const data = dokterList.map(d => ({
+      id: d.id, // Dokter.id
+      namaLengkap: d.namaLengkap,
+      spesialisasi: d.poli.namaPoli,
+    }));
+
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error("[GET /api/dokter]", error);
     return NextResponse.json(

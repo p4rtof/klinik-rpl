@@ -11,16 +11,10 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const dokter = await prisma.user.findFirst({
-      where: { id, role: "DOKTER" },
-      select: {
-        id: true,
-        namaLengkap: true,
-        spesialisasi: true,
-        noTelepon: true,
-        sip: true,
-        str: true,
-        fotoUrl: true,
+    const dokterProfile = await prisma.dokter.findUnique({
+      where: { userId: id },
+      include: {
+        poli: true,
         jadwal: {
           include: { pasien: { select: { id: true, noRm: true, nama: true } } },
           orderBy: [{ tanggal: "asc" }, { nomorAntrian: "asc" }],
@@ -28,14 +22,26 @@ export async function GET(
       },
     });
 
-    if (!dokter) {
+    if (!dokterProfile) {
       return NextResponse.json(
         { success: false, error: "Dokter tidak ditemukan" },
         { status: 404 },
       );
     }
 
-    return NextResponse.json({ success: true, data: dokter });
+    const data = {
+      id: dokterProfile.userId, // keep user id for client-side routing compatibility
+      dokterProfileId: dokterProfile.id,
+      namaLengkap: dokterProfile.namaLengkap,
+      spesialisasi: dokterProfile.poli.namaPoli,
+      noTelepon: dokterProfile.noTelepon,
+      sip: dokterProfile.sip,
+      str: dokterProfile.str,
+      fotoUrl: dokterProfile.fotoUrl,
+      jadwal: dokterProfile.jadwal,
+    };
+
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error("[GET /api/dokter/[id]]", error);
     return NextResponse.json(
@@ -68,23 +74,34 @@ export async function PUT(
       );
     }
 
-    const updated = await prisma.user.update({
-      where: { id },
-      data: parseResult.data,
-      select: {
-        id: true,
-        namaLengkap: true,
-        spesialisasi: true,
-        noTelepon: true,
-        sip: true,
-        str: true,
-        fotoUrl: true,
+    const updated = await prisma.dokter.update({
+      where: { userId: id },
+      data: {
+        namaLengkap: parseResult.data.namaLengkap,
+        noTelepon: parseResult.data.noTelepon,
+        sip: parseResult.data.sip,
+        str: parseResult.data.str,
+        fotoUrl: parseResult.data.fotoUrl,
+        poliId: parseResult.data.poliId,
+      },
+      include: {
+        poli: true
       }
     });
 
+    const data = {
+      id: updated.userId,
+      namaLengkap: updated.namaLengkap,
+      spesialisasi: updated.poli.namaPoli,
+      noTelepon: updated.noTelepon,
+      sip: updated.sip,
+      str: updated.str,
+      fotoUrl: updated.fotoUrl,
+    };
+
     return NextResponse.json({ 
       success: true, 
-      data: updated,
+      data,
       message: "Profil berhasil diperbarui" 
     });
   } catch (error) {

@@ -7,7 +7,7 @@ import Link from "next/link";
 type ResepRow = {
   obatId: string;
   aturan: string;
-  dosis: string;
+  dosis: string; // Used for quantity input
 };
 
 type TindakanRow = {
@@ -25,9 +25,14 @@ function PeriksaPageContent() {
   const [pilihanTindakan, setPilihanTindakan] = useState<
     { id: string; label: string; harga: number }[]
   >([]);
+  const [pilihanObat, setPilihanObat] = useState<
+    { id: string; kodeObat: string; namaObat: string; satuan: string; hargaJual: number }[]
+  >([]);
+  const [pilihanPenyakit, setPilihanPenyakit] = useState<
+    { id: string; kodeIcd10: string; namaPenyakit: string }[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
 
   // STATE MULTIPLE TINDAKAN
   const [tindakanItems, setTindakanItems] = useState<TindakanRow[]>([
@@ -35,7 +40,7 @@ function PeriksaPageContent() {
   ]);
 
   const [formData, setFormData] = useState({
-    diagnosis: "",
+    diagnosis: "", // will hold selected penyakitId
     keluhanUtama: "",
     rps: "",
     rpd: "",
@@ -78,7 +83,7 @@ function PeriksaPageContent() {
     return tindakanItems.reduce((acc, curr) => acc + curr.harga, 0);
   }, [tindakanItems]);
 
-  // FETCH DATA TINDAKAN DARI BACKEND
+  // FETCH MASTER DATA DARI BACKEND
   useEffect(() => {
     const fetchTindakan = async () => {
       try {
@@ -89,7 +94,27 @@ function PeriksaPageContent() {
         console.error("Gagal mengambil data tindakan medis:", err);
       }
     };
+    const fetchObat = async () => {
+      try {
+        const res = await fetch("/api/obat");
+        const json = await res.json();
+        if (json.success) setPilihanObat(json.data);
+      } catch (err) {
+        console.error("Gagal mengambil data obat:", err);
+      }
+    };
+    const fetchPenyakit = async () => {
+      try {
+        const res = await fetch("/api/penyakit");
+        const json = await res.json();
+        if (json.success) setPilihanPenyakit(json.data);
+      } catch (err) {
+        console.error("Gagal mengambil data penyakit:", err);
+      }
+    };
     fetchTindakan();
+    fetchObat();
+    fetchPenyakit();
   }, []);
 
   useEffect(() => {
@@ -135,7 +160,7 @@ function PeriksaPageContent() {
     setTindakanItems((prev) =>
       prev.map((item, i) =>
         i === idx
-          ? { label: val, font: "bold", harga: terpilih ? terpilih.harga : 0 }
+          ? { label: val, harga: terpilih ? terpilih.harga : 0 }
           : item,
       ),
     );
@@ -157,18 +182,15 @@ function PeriksaPageContent() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
-    // Mencegah form langsung tersubmit ketika Enter ditekan (kecuali di textarea)
     if (e.key === "Enter") {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
         e.preventDefault();
       }
     }
 
-    // Navigasi menggunakan panah Kiri / Kanan
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       const target = e.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
       
-      // Jika di dalam text box, pastikan kursor di paling ujung sebelum pindah input
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
         try {
           const inputTarget = target as HTMLInputElement;
@@ -178,7 +200,7 @@ function PeriksaPageContent() {
           if (e.key === "ArrowRight" && !isAtEnd) return;
           if (e.key === "ArrowLeft" && !isAtStart) return;
         } catch(err) {
-          // Aman dari error jika tipe input tidak mendukung selectionStart
+          // Safe
         }
       }
 
@@ -200,26 +222,42 @@ function PeriksaPageContent() {
     }
   };
 
-  // Ganti nama handleSubmit jadi handleValidasi (untuk tombol form)
   const handleValidasi = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const validTindakan = tindakanItems.filter((t) => t.label.trim() !== "");
-    if (validTindakan.length === 0 || !formData.diagnosis.trim()) {
-      alert("Minimal 1 Tindakan and Diagnosis wajib diisi!");
+    if (validTindakan.length === 0 || !formData.diagnosis) {
+      alert("Minimal 1 Tindakan dan Diagnosis wajib diisi!");
       return;
     }
 
-    // Tampilkan modal konfirmasi, jangan langsung submit
     setShowKonfirmasi(true);
   };
 
-  // Fungsi submit asli dipanggil dari modal
   const handleSubmit = async () => {
     const validTindakan = tindakanItems.filter((t) => t.label.trim() !== "");
+    
+    // Map selected tindakan labels to database UUIDs
+    const tindakanIds = validTindakan.map(t => {
+      const matched = pilihanTindakan.find(pt => pt.label === t.label);
+      return matched ? matched.id : "";
+    }).filter(Boolean);
+
+    // Map prescriptions
     const resepValid = resepItems
-      .map((r) => ({ obatId: r.obatId.trim(), aturan: r.aturan.trim(), dosis: r.dosis.trim() }))
-      .filter((r) => r.obatId && r.aturan && r.dosis);
+      .filter((r) => r.obatId && r.aturan && r.dosis)
+      .map((r) => {
+        const qty = parseInt(r.dosis.replace(/[^\d]/g, ""), 10) || 1;
+        const ruleParts = r.aturan.split(" ");
+        const dosisVal = ruleParts[0] || "3x1";
+        const aturanVal = ruleParts.slice(1).join(" ") || "Sesudah Makan";
+        return {
+          obatId: r.obatId,
+          dosis: dosisVal,
+          aturan: aturanVal,
+          jumlah: qty,
+        };
+      });
 
     setIsSubmitting(true);
     setShowKonfirmasi(false);
@@ -228,9 +266,8 @@ function PeriksaPageContent() {
         pasienId: antrean.pasienId,
         jadwalId: antrean.id,
         keluhan: (formData.keluhanUtama || "Pemeriksaan rutin").trim(),
-        tindakan: validTindakan.map((t) => t.label).join(", "),
-        biayaTindakan: totalBiayaTindakan,
-        diagnosis: [{ diagnosis: formData.diagnosis.trim() }],
+        tindakan: tindakanIds,
+        diagnosis: [{ penyakitId: formData.diagnosis, catatan: "Diagnosis Utama" }],
         resep: resepValid,
         anamnesisKeluhanUtama: formData.keluhanUtama?.trim() || undefined,
         anamnesisRps: formData.rps?.trim() || undefined,
@@ -279,6 +316,7 @@ function PeriksaPageContent() {
       setIsSubmitting(false);
     }
   };
+
   if (isLoading) {
     return (
       <div className="p-10 text-center font-bold animate-pulse text-primary">
@@ -294,6 +332,9 @@ function PeriksaPageContent() {
       </div>
     );
   }
+
+  const selectedPenyakit = pilihanPenyakit.find(p => p.id === formData.diagnosis);
+  const namaPenyakitTerpilih = selectedPenyakit ? `${selectedPenyakit.kodeIcd10} - ${selectedPenyakit.namaPenyakit}` : "";
 
   return (
     <div className="w-full space-y-6 text-black">
@@ -440,7 +481,7 @@ function PeriksaPageContent() {
                     required={idx === 0}
                     value={row.label}
                     onChange={(e) => updateTindakanRow(idx, e.target.value)}
-                    className="flex-1 border-2 border-gray-100 p-3.5 rounded-2xl focus:border-primary outline-none font-bold bg-white cursor-pointer"
+                    className="w-full border-2 border-gray-100 p-3.5 rounded-2xl focus:border-primary outline-none font-bold bg-white cursor-pointer"
                   >
                     <option value="">-- Pilih Tindakan --</option>
                     {pilihanTindakan.map((t, index) => (
@@ -463,19 +504,26 @@ function PeriksaPageContent() {
               ))}
             </div>
 
+            {/* DIAGNOSIS ICD-10 SELECT */}
             <div className="space-y-3">
               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Diagnosis Utama (Wajib)
               </label>
-              <input
+              <select
                 required
                 value={formData.diagnosis}
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, diagnosis: e.target.value }))
                 }
-                className="w-full border-2 border-gray-100 p-4 rounded-2xl focus:border-primary outline-none font-bold placeholder:text-gray-200"
-                placeholder="Misal: Gastritis / Demam Akut..."
-              />
+                className="w-full border-2 border-gray-100 p-4 rounded-2xl focus:border-primary outline-none font-bold bg-white cursor-pointer"
+              >
+                <option value="">-- Pilih Diagnosis (ICD-10) --</option>
+                {pilihanPenyakit.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.kodeIcd10} - {p.namaPenyakit}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -653,7 +701,7 @@ function PeriksaPageContent() {
             </div>
           </div>
 
-          {/* RESEP */}
+          {/* RESEP OBAT DENGAN SELECT DROPDOWN */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -687,14 +735,21 @@ function PeriksaPageContent() {
                         <label className="text-[10px] font-bold text-gray-400 uppercase">
                           Nama Obat
                         </label>
-                        <input
+                        <select
+                          required
                           value={row.obatId}
                           onChange={(e) =>
                             updateResepRow(idx, { obatId: e.target.value })
                           }
-                          className="w-full border-2 border-gray-100 p-3 rounded-xl outline-none font-bold bg-white"
-                          placeholder="Paracetamol 500mg"
-                        />
+                          className="w-full border-2 border-gray-100 p-3 rounded-xl outline-none font-bold bg-white cursor-pointer"
+                        >
+                          <option value="">-- Pilih Obat --</option>
+                          {pilihanObat.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.namaObat} ({o.satuan}) - Rp {o.hargaJual.toLocaleString("id-ID")}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       <div className="space-y-1">
@@ -721,7 +776,7 @@ function PeriksaPageContent() {
                             updateResepRow(idx, { dosis: e.target.value })
                           }
                           className="w-full border-2 border-gray-100 p-3 rounded-xl outline-none font-bold bg-white"
-                          placeholder="10 tablet"
+                          placeholder="10"
                         />
                       </div>
                     </div>
@@ -858,6 +913,7 @@ function PeriksaPageContent() {
           </div>
         </form>
       </div>
+
       {/* MODAL KONFIRMASI SIMPAN */}
       {showKonfirmasi && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -893,7 +949,7 @@ function PeriksaPageContent() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Diagnosis</span>
-                  <span className="text-gray-800 font-bold">{formData.diagnosis}</span>
+                  <span className="text-gray-800 font-bold">{namaPenyakitTerpilih}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Total Biaya</span>
@@ -949,11 +1005,7 @@ function InputNumber(props: {
         onChange={(e) => props.onChange(e.target.value)}
         className="w-full border-2 border-gray-100 p-3 rounded-xl outline-none font-bold bg-white focus:border-primary"
       />
-
-      
     </div>
-
-    
   );
 }
 

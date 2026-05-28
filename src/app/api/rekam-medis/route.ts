@@ -23,30 +23,36 @@ export async function POST(request: Request) {
 
     const data = parseResult.data;
 
-    const dokter = await prisma.user.findUnique({
-      where: { id: userId! },
-      select: { namaLengkap: true },
+    // Cari Dokter berdasarkan userId
+    const dokter = await prisma.dokter.findUnique({
+      where: { userId: userId! }
     });
 
     if (!dokter) {
       return NextResponse.json({ success: false, error: "Dokter tidak ditemukan" }, { status: 404 });
     }
 
-    let tindakanString = "";
-    if (data.tindakan) {
-      tindakanString = Array.isArray(data.tindakan) ? data.tindakan.join(", ") : data.tindakan;
-    }
-
     const result = await prisma.$transaction(async (tx: any) => {
+      // Fetch harga obat untuk snapshot
+      const obatIds = data.resep.map((r: any) => r.obatId);
+      const obatList = await tx.obat.findMany({
+        where: { id: { in: obatIds } }
+      });
+
+      // Fetch harga tindakan untuk snapshot
+      const tindakanIds = data.tindakan || [];
+      const tindakanList = await tx.tindakan.findMany({
+        where: { id: { in: tindakanIds } }
+      });
+
       // 1. Buat rekam medis
       const rm = await tx.rekamMedis.create({
         data: {
           pasienId: data.pasienId,
-          dokterId: userId!,
+          dokterId: dokter.id,
           namaDokter: dokter.namaLengkap,
           jadwalId: data.jadwalId,
           keluhan: data.keluhan,
-          tindakan: tindakanString,
           
           anamnesisKeluhanUtama: data.anamnesisKeluhanUtama || data.keluhan,
           anamnesisRps: data.anamnesisRps,
@@ -72,21 +78,33 @@ export async function POST(request: Request) {
 
           diagnosis: {
             create: data.diagnosis.map((d: any) => ({
-              diagnosis: d.diagnosis,
+              penyakitId: d.penyakitId,
+              catatan: d.catatan
             })),
           },
           resep: {
-            create: data.resep.map((r: any) => ({
-              obatId: r.obatId,
-              dosis: r.dosis,
-              aturan: r.aturan,
-              jumlah: r.jumlah,
-            })),
+            create: data.resep.map((r: any) => {
+              const o = obatList.find((ob: any) => ob.id === r.obatId);
+              return {
+                obatId: r.obatId,
+                dosis: r.dosis,
+                aturan: r.aturan,
+                jumlah: r.jumlah,
+                hargaSnapshot: o ? o.hargaJual : 0,
+              };
+            }),
           },
+          rekamMedisTindakan: {
+            create: tindakanList.map((t: any) => ({
+              tindakanId: t.id,
+              hargaSnapshot: t.harga,
+              kuantitas: 1
+            }))
+          }
         },
       });
 
-      // 2. Buat rujukan (Jika ada) secara terpisah untuk menghindari error relasi 1-to-1
+      // 2. Buat rujukan (Jika ada)
       if (data.rujukan) {
         await tx.rujukan.create({
           data: {
@@ -107,16 +125,75 @@ export async function POST(request: Request) {
         });
       }
 
+      // Hitung total biaya
+      const totalTindakan = tindakanList.reduce((acc: number, t: any) => acc + t.harga, 0);
+      const totalObat = data.resep.reduce((acc: number, r: any) => {
+        const o = obatList.find((ob: any) => ob.id === r.obatId);
+        return acc + (o ? o.hargaJual * r.jumlah : 0);
+      }, 0);
+      const grandTotal = 50000 + totalTindakan + totalObat; // 50000 adalah biaya konsultasi dasar
+
       // 4. Buat Pembayaran
-      await tx.pembayaran.create({
+      const pembayaran = await tx.pembayaran.create({
         data: {
           pasienId: data.pasienId,
           rekamMedisId: rm.id,
-          jumlah: data.biayaTindakan ?? 0,
+          totalJumlah: grandTotal,
           metode: "TUNAI",
           status: "BELUM_BAYAR",
         },
       });
+
+      // 5. Buat Detail Pembayaran (Ledger)
+      // a. Konsultasi
+      await tx.detailPembayaran.create({
+        data: {
+          pembayaranId: pembayaran.id,
+          tipeItem: "KONSULTASI",
+          namaItem: "Konsultasi Dokter & Pemeriksaan Umum",
+          hargaSatuan: 50000,
+          kuantitas: 1,
+          subtotal: 50000
+        }
+      });
+
+      // b. Tindakan
+      for (const t of tindakanList) {
+        await tx.detailPembayaran.create({
+          data: {
+            pembayaranId: pembayaran.id,
+            tipeItem: "TINDAKAN",
+            namaItem: t.namaTindakan,
+            hargaSatuan: t.harga,
+            kuantitas: 1,
+            subtotal: t.harga
+          }
+        });
+      }
+
+      // c. Obat
+      for (const r of data.resep) {
+        const o = obatList.find((ob: any) => ob.id === r.obatId);
+        if (o) {
+          const sub = o.hargaJual * r.jumlah;
+          await tx.detailPembayaran.create({
+            data: {
+              pembayaranId: pembayaran.id,
+              tipeItem: "OBAT",
+              namaItem: o.namaObat,
+              hargaSatuan: o.hargaJual,
+              kuantitas: r.jumlah,
+              subtotal: sub
+            }
+          });
+
+          // Kurangi stok obat
+          await tx.obat.update({
+            where: { id: o.id },
+            data: { stok: { decrement: r.jumlah } }
+          });
+        }
+      }
 
       return rm;
     });

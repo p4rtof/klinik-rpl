@@ -13,7 +13,13 @@ export async function GET(
       where: { id },
       include: {
         pasien: true,
-        dokter: { select: { namaLengkap: true, spesialisasi: true } },
+        dokter: {
+          select: {
+            id: true,
+            namaLengkap: true,
+            poli: { select: { namaPoli: true } }
+          }
+        },
       },
     });
 
@@ -21,7 +27,16 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Antrean tidak ditemukan" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: jadwal });
+    const mappedJadwal = {
+      ...jadwal,
+      dokter: jadwal.dokter ? {
+        id: jadwal.dokter.id,
+        namaLengkap: jadwal.dokter.namaLengkap,
+        spesialisasi: jadwal.dokter.poli?.namaPoli || "Umum"
+      } : null
+    };
+
+    return NextResponse.json({ success: true, data: mappedJadwal });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
   }
@@ -54,7 +69,7 @@ export async function PATCH(
   }
 }
 
-// 3. DELETE: Fungsi untuk HAPUS Kunjungan (Ini yang tadi bikin error)
+// 3. DELETE: Fungsi untuk HAPUS Kunjungan
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -88,7 +103,7 @@ export async function DELETE(
   }
 }
 
-// 4. PUT: Untuk update status saja (bawaan kodinganmu sebelumnya)
+// 4. PUT: Untuk update status saja
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

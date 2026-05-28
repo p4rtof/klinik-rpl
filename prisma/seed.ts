@@ -6,7 +6,18 @@ const prisma = new PrismaClient();
 async function main() {
   const hashedPassword = await bcrypt.hash('admin123', 10);
 
-  // Buat user Admin
+  // 1. Buat Poli Umum
+  const poliUmum = await prisma.poli.upsert({
+    where: { namaPoli: 'Poli Umum' },
+    update: {},
+    create: {
+      namaPoli: 'Poli Umum',
+      keterangan: 'Layanan kesehatan umum 24 jam',
+    },
+  });
+  console.log('✅ Poli:', poliUmum.namaPoli);
+
+  // 2. Buat user Admin
   const admin = await prisma.user.upsert({
     where: { username: 'admin' },
     update: {},
@@ -19,8 +30,8 @@ async function main() {
   });
   console.log('✅ Admin:', admin.username);
 
-  // Buat user Dokter (dr. Yofli)
-  const dokter = await prisma.user.upsert({
+  // 3. Buat user Dokter (dr. Yofli)
+  const userDokter = await prisma.user.upsert({
     where: { username: 'dryofli' },
     update: {},
     create: {
@@ -28,10 +39,27 @@ async function main() {
       password: hashedPassword,
       role: 'DOKTER',
       namaLengkap: 'dr. Yofli',
-      spesialisasi: 'Umum',
     },
   });
-  console.log('✅ Dokter:', dokter.username, '—', dokter.namaLengkap);
+  console.log('✅ User Dokter:', userDokter.username);
+
+  // 4. Buat Dokter Profile
+  const dokterProfile = await prisma.dokter.upsert({
+    where: { userId: userDokter.id },
+    update: {
+      poliId: poliUmum.id,
+      namaLengkap: 'dr. Yofli',
+    },
+    create: {
+      userId: userDokter.id,
+      poliId: poliUmum.id,
+      namaLengkap: 'dr. Yofli',
+      sip: 'SIP/123/2026',
+      str: 'STR/123/2026',
+      noTelepon: '0858-8788-35683',
+    },
+  });
+  console.log('✅ Profil Dokter:', dokterProfile.namaLengkap);
 
   console.log('\n📋 Akun default:');
   console.log('  Admin    → username: admin    | password: admin123');
@@ -39,5 +67,10 @@ async function main() {
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); });
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
