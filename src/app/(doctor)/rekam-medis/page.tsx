@@ -158,11 +158,11 @@ export default function RiwayatPasienPage() {
                       <div>
                         <p className="text-md font-black text-gray-400 uppercase tracking-widest">Tujuan Rujukan</p>
                         <p className="text-md font-bold text-gray-700">
-                           {Array.isArray(h.rujukan) && h.rujukan.length > 0 ? h.rujukan[0].tujuan : "-"}
+                           {h.rujukan ? h.rujukan.tujuan : "-"}
                         </p>
                       </div>
                       <div className={`px-3 py-1 rounded-lg text-md font-black uppercase ${Array.isArray(h.rujukan) && h.rujukan.length > 0 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-                        {Array.isArray(h.rujukan) && h.rujukan.length > 0 ? 'DIRUJUK' : 'TANPA RUJUKAN'}
+                        {h.rujukan ? 'DIRUJUK' : 'TANPA RUJUKAN'}
                       </div>
                     </div>
                   </div>
