@@ -6,8 +6,8 @@ import Link from "next/link";
 
 type ResepRow = {
   obatId: string;
-  aturan: string;
-  dosis: string; // Used for quantity input
+  aturan: string;  // e.g. "3x1 Sesudah Makan"
+  jumlah: string;  // quantity as string for input binding
 };
 
 type TindakanRow = {
@@ -64,9 +64,7 @@ function PeriksaPageContent() {
   });
 
   const [showKonfirmasi, setShowKonfirmasi] = useState(false);
-  const [resepItems, setResepItems] = useState<ResepRow[]>([
-    { obatId: "", aturan: "", dosis: "" },
-  ]);
+  const [resepItems, setResepItems] = useState<ResepRow[]>([]);
 
   const bmi = useMemo(() => {
     const bb = Number(formData.bb);
@@ -168,8 +166,10 @@ function PeriksaPageContent() {
 
   // --- LOGIKA MULTIPLE RESEP ---
   const addResepRow = () => {
-    setResepItems((prev) => [...prev, { obatId: "", aturan: "", dosis: "" }]);
+    setResepItems((prev) => [...prev, { obatId: "", aturan: "", jumlah: "" }]);
   };
+
+  const clearResep = () => setResepItems([]);
 
   const removeResepRow = (idx: number) => {
     setResepItems((prev) => prev.filter((_, i) => i !== idx));
@@ -243,21 +243,15 @@ function PeriksaPageContent() {
       return matched ? matched.id : "";
     }).filter(Boolean);
 
-    // Map prescriptions
+    // Map prescriptions — filter hanya butuh obatId dan jumlah valid
     const resepValid = resepItems
-      .filter((r) => r.obatId && r.aturan && r.dosis)
-      .map((r) => {
-        const qty = parseInt(r.dosis.replace(/[^\d]/g, ""), 10) || 1;
-        const ruleParts = r.aturan.split(" ");
-        const dosisVal = ruleParts[0] || "3x1";
-        const aturanVal = ruleParts.slice(1).join(" ") || "Sesudah Makan";
-        return {
-          obatId: r.obatId,
-          dosis: dosisVal,
-          aturan: aturanVal,
-          jumlah: qty,
-        };
-      });
+      .filter((r) => r.obatId && Number(r.jumlah) > 0)
+      .map((r) => ({
+        obatId: r.obatId,
+        dosis: r.aturan.trim() || "Sesuai Petunjuk",
+        aturan: "Sesuai Petunjuk",
+        jumlah: parseInt(r.jumlah, 10),
+      }));
 
     setIsSubmitting(true);
     setShowKonfirmasi(false);
@@ -731,12 +725,11 @@ function PeriksaPageContent() {
                     className="border border-gray-100 rounded-2xl p-4 bg-gray-50"
                   >
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="space-y-1">
+                      <div className="md:col-span-1 space-y-1">
                         <label className="text-[10px] font-bold text-gray-400 uppercase">
                           Nama Obat
                         </label>
                         <select
-                          required
                           value={row.obatId}
                           onChange={(e) =>
                             updateResepRow(idx, { obatId: e.target.value })
@@ -768,12 +761,14 @@ function PeriksaPageContent() {
 
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-400 uppercase">
-                          Jumlah
+                          Jumlah (pcs)
                         </label>
                         <input
-                          value={row.dosis}
+                          type="number"
+                          min="1"
+                          value={row.jumlah}
                           onChange={(e) =>
-                            updateResepRow(idx, { dosis: e.target.value })
+                            updateResepRow(idx, { jumlah: e.target.value })
                           }
                           className="w-full border-2 border-gray-100 p-3 rounded-xl outline-none font-bold bg-white"
                           placeholder="10"
@@ -786,10 +781,6 @@ function PeriksaPageContent() {
                         type="button"
                         onClick={() => removeResepRow(idx)}
                         className="text-red-600 font-bold hover:underline"
-                        disabled={resepItems.length === 1}
-                        title={
-                          resepItems.length === 1 ? "Minimal 1 baris" : "Hapus"
-                        }
                       >
                         Hapus
                       </button>

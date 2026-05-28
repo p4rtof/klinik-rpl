@@ -121,3 +121,23 @@ export const updatePembayaranSchema = z.object({
   metode: z.enum(['TUNAI', 'TRANSFER', 'BPJS']).optional(),
   status: z.enum(['BELUM_BAYAR', 'LUNAS']).optional(),
 });
+
+// === MASTER DATA ===
+export const obatSchema = z.object({
+  kodeObat: z.string().min(1, 'Kode obat wajib diisi'),
+  namaObat: z.string().min(1, 'Nama obat wajib diisi'),
+  satuan: z.string().min(1, 'Satuan wajib diisi'),
+  hargaJual: z.number().min(0, 'Harga jual tidak boleh negatif'),
+  stok: z.number().int().min(0, 'Stok tidak boleh negatif'),
+});
+
+export const tindakanSchema = z.object({
+  kodeTindakan: z.string().min(1, 'Kode tindakan wajib diisi'),
+  namaTindakan: z.string().min(1, 'Nama tindakan wajib diisi'),
+  harga: z.number().min(0, 'Harga tidak boleh negatif'),
+});
+
+export const poliSchema = z.object({
+  namaPoli: z.string().min(1, 'Nama poli wajib diisi'),
+  keterangan: z.string().optional(),
+});

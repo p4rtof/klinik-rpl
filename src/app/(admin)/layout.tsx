@@ -30,6 +30,21 @@ export default function AdminLayout({
       path: "/data-pasien",
     },
     {
+      name: "Data Obat",
+      icon: "/componen-admin/obat.svg",
+      path: "/obat",
+    },
+    {
+      name: "Data Tindakan",
+      icon: "/componen-admin/tindakan.svg",
+      path: "/tindakan",
+    },
+    {
+      name: "Data Poli",
+      icon: "/componen-admin/poli.svg",
+      path: "/poli",
+    },
+    {
       name: "Pembayaran",
       icon: "/componen-admin/pembayaran.svg",
       path: "/pembayaran",

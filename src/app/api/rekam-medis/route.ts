@@ -172,10 +172,17 @@ export async function POST(request: Request) {
         });
       }
 
-      // c. Obat
+      // c. Obat — validasi stok lalu kurangi
       for (const r of data.resep) {
         const o = obatList.find((ob) => ob.id === r.obatId);
         if (o) {
+          // Validasi: stok harus mencukupi
+          if (o.stok < r.jumlah) {
+            throw new Error(
+              `Stok obat "${o.namaObat}" tidak mencukupi. Stok tersedia: ${o.stok}, diminta: ${r.jumlah}.`
+            );
+          }
+
           const sub = o.hargaJual * r.jumlah;
           await tx.detailPembayaran.create({
             data: {

@@ -25,6 +25,7 @@ export default function ProfilDokterPage() {
   const [isEditing, setIsEditing] = useState(false);
 
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     namaLengkap: "",
@@ -68,7 +69,7 @@ export default function ProfilDokterPage() {
       }
 
       if (!res.ok || !json.success) {
-        alert(json.error || "Gagal memuat profil");
+        setErrorMsg(json.error || "Gagal memuat profil");
         return;
       }
 
@@ -164,8 +165,24 @@ export default function ProfilDokterPage() {
 
   if (!profile) {
     return (
-      <div className="p-10 text-center font-bold text-red-600">
-        Profil tidak ditemukan.
+      <div className="p-10 text-center space-y-4">
+        <p className="font-bold text-red-600 text-lg">
+          {errorMsg || "Profil tidak ditemukan."}
+        </p>
+        {errorMsg?.includes("tidak ditemukan") && (
+          <p className="text-sm text-gray-500">
+            Sesi kamu mungkin sudah kadaluarsa. Silakan logout lalu login ulang.
+          </p>
+        )}
+        <button
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            router.push("/login");
+          }}
+          className="bg-primary text-white px-6 py-2 rounded-xl font-bold hover:opacity-90"
+        >
+          Logout & Login Ulang
+        </button>
       </div>
     );
   }
