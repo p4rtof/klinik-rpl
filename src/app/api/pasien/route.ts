@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pasienSchema } from "@/lib/validations";
+import { Prisma } from "@prisma/client";
 import { generatePasienIds } from "@/lib/id-generator";
 
 // GET /api/pasien?search=...&searchType=nama|noRm|id|noTelepon&sortBy=id|nama|usia
@@ -16,10 +17,9 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
-    const searchType = searchParams.get("searchType") || "nama";
     const sortBy = searchParams.get("sortBy") || "id";
 
-    let whereCondition: any = undefined;
+    let whereCondition: Prisma.PasienWhereInput | undefined = undefined;
 
     if (search) {
       whereCondition = {
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       };
     }
 
-    let orderBy: any = { id: "desc" };
+    let orderBy: Prisma.PasienOrderByWithRelationInput = { id: "desc" };
     if (sortBy === "nama") {
       orderBy = { nama: "asc" };
     } else if (sortBy === "tanggalLahir") {

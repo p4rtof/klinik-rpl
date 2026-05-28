@@ -53,35 +53,29 @@ export async function GET(
     }
 
     // Map relations to expected flat properties for frontend backward-compatibility
-    const mappedRekamMedis = pasien.rekamMedis.map((rm: any) => {
-      const flatRm = { ...rm };
-      if (flatRm.dokter) {
-        flatRm.dokter.spesialisasi = flatRm.dokter.poli?.namaPoli || "Umum";
-      }
-
-      if (flatRm.diagnosis) {
-        flatRm.diagnosis = flatRm.diagnosis.map((d: any) => ({
+    const mappedRekamMedis = pasien.rekamMedis.map((rm) => {
+      return {
+        ...rm,
+        dokter: rm.dokter
+          ? {
+              ...rm.dokter,
+              spesialisasi: rm.dokter.poli?.namaPoli || "Umum",
+            }
+          : null,
+        diagnosis: rm.diagnosis.map((d) => ({
           ...d,
           diagnosis: d.penyakit?.namaPenyakit || d.catatan || ""
-        }));
-      }
-
-      if (flatRm.resep) {
-        flatRm.resep = flatRm.resep.map((r: any) => ({
+        })),
+        resep: rm.resep.map((r) => ({
           ...r,
           obatId: r.obat?.namaObat || r.obatId
-        }));
-      }
-
-      if (flatRm.rekamMedisTindakan) {
-        flatRm.tindakan = flatRm.rekamMedisTindakan.map((rt: any) => rt.tindakan?.namaTindakan).join(", ");
-      }
-
-      return flatRm;
+        })),
+        tindakan: rm.rekamMedisTindakan.map((rt) => rt.tindakan?.namaTindakan).join(", ")
+      };
     });
 
     // Also map pembayaran fields (jumlah to totalJumlah mapping if needed on client)
-    const mappedPembayaran = pasien.pembayaran.map((p: any) => ({
+    const mappedPembayaran = pasien.pembayaran.map((p) => ({
       ...p,
       jumlah: p.totalJumlah
     }));

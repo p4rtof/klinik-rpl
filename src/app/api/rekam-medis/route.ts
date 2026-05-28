@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rekamMedisSchema } from "@/lib/validations";
+import { Prisma } from "@prisma/client";
 
 export async function POST(request: Request) {
   try {
@@ -32,9 +33,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Dokter tidak ditemukan" }, { status: 404 });
     }
 
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Fetch harga obat untuk snapshot
-      const obatIds = data.resep.map((r: any) => r.obatId);
+      const obatIds = data.resep.map((r) => r.obatId);
       const obatList = await tx.obat.findMany({
         where: { id: { in: obatIds } }
       });
@@ -77,14 +78,14 @@ export async function POST(request: Request) {
           rujukanCatatan: data.rujukanCatatan,
 
           diagnosis: {
-            create: data.diagnosis.map((d: any) => ({
+            create: data.diagnosis.map((d) => ({
               penyakitId: d.penyakitId,
               catatan: d.catatan
             })),
           },
           resep: {
-            create: data.resep.map((r: any) => {
-              const o = obatList.find((ob: any) => ob.id === r.obatId);
+            create: data.resep.map((r) => {
+              const o = obatList.find((ob) => ob.id === r.obatId);
               return {
                 obatId: r.obatId,
                 dosis: r.dosis,
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
             }),
           },
           rekamMedisTindakan: {
-            create: tindakanList.map((t: any) => ({
+            create: tindakanList.map((t) => ({
               tindakanId: t.id,
               hargaSnapshot: t.harga,
               kuantitas: 1
@@ -126,9 +127,9 @@ export async function POST(request: Request) {
       }
 
       // Hitung total biaya
-      const totalTindakan = tindakanList.reduce((acc: number, t: any) => acc + t.harga, 0);
-      const totalObat = data.resep.reduce((acc: number, r: any) => {
-        const o = obatList.find((ob: any) => ob.id === r.obatId);
+      const totalTindakan = tindakanList.reduce((acc, t) => acc + t.harga, 0);
+      const totalObat = data.resep.reduce((acc, r) => {
+        const o = obatList.find((ob) => ob.id === r.obatId);
         return acc + (o ? o.hargaJual * r.jumlah : 0);
       }, 0);
       const grandTotal = 50000 + totalTindakan + totalObat; // 50000 adalah biaya konsultasi dasar
@@ -173,7 +174,7 @@ export async function POST(request: Request) {
 
       // c. Obat
       for (const r of data.resep) {
-        const o = obatList.find((ob: any) => ob.id === r.obatId);
+        const o = obatList.find((ob) => ob.id === r.obatId);
         if (o) {
           const sub = o.hargaJual * r.jumlah;
           await tx.detailPembayaran.create({
@@ -199,8 +200,9 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ success: true, data: result }, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[POST /api/rekam-medis] Error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Internal Server Error" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Internal Server Error";
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }

@@ -52,14 +52,16 @@ export async function GET(request: Request) {
     });
 
     // Map for frontend compatibility
-    const mapped = pembayaran.map((p: any) => {
-      const flatRm = p.rekamMedis ? { ...p.rekamMedis } : null;
-      if (flatRm && flatRm.diagnosis) {
-        flatRm.diagnosis = flatRm.diagnosis.map((d: any) => ({
-          ...d,
-          diagnosis: d.penyakit?.namaPenyakit || d.catatan || ""
-        }));
-      }
+    const mapped = pembayaran.map((p) => {
+      const flatRm = p.rekamMedis
+        ? {
+            ...p.rekamMedis,
+            diagnosis: p.rekamMedis.diagnosis.map((d) => ({
+              ...d,
+              diagnosis: d.penyakit?.namaPenyakit || d.catatan || ""
+            }))
+          }
+        : null;
       return {
         ...p,
         jumlah: p.totalJumlah,
@@ -137,13 +139,15 @@ export async function POST(request: Request) {
       },
     });
 
-    const flatRm = newPembayaran.rekamMedis ? { ...newPembayaran.rekamMedis } : null;
-    if (flatRm && flatRm.diagnosis) {
-      flatRm.diagnosis = flatRm.diagnosis.map((d: any) => ({
-        ...d,
-        diagnosis: d.penyakit?.namaPenyakit || d.catatan || ""
-      }));
-    }
+    const flatRm = newPembayaran.rekamMedis
+      ? {
+          ...newPembayaran.rekamMedis,
+          diagnosis: newPembayaran.rekamMedis.diagnosis.map((d) => ({
+            ...d,
+            diagnosis: d.penyakit?.namaPenyakit || d.catatan || ""
+          }))
+        }
+      : null;
 
     const data = {
       ...newPembayaran,

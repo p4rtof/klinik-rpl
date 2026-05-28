@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jadwalSchema } from "@/lib/validations";
+import { Prisma } from "@prisma/client";
 
 // GET /api/antrian?tanggal=YYYY-MM-DD&dokterId=xxx&tanggalMulai=...&tanggalAkhir=...&sortBy=status
 export async function GET(request: Request) {
@@ -48,9 +49,16 @@ export async function GET(request: Request) {
     }
 
     // Tentukan order by
-    let orderBy: any = [{ tanggal: "asc" }, { nomorAntrian: "asc" }];
+    let orderBy: Prisma.JadwalOrderByWithRelationInput[] = [
+      { tanggal: "asc" },
+      { nomorAntrian: "asc" }
+    ];
     if (sortBy === "status") {
-      orderBy = [{ status: "asc" }, { tanggal: "asc" }, { nomorAntrian: "asc" }];
+      orderBy = [
+        { status: "asc" },
+        { tanggal: "asc" },
+        { nomorAntrian: "asc" }
+      ];
     }
 
     const antrian = await prisma.jadwal.findMany({
@@ -81,12 +89,15 @@ export async function GET(request: Request) {
     });
 
     // Remap spesialisasi field for compatibility with older frontend components
-    const mappedAntrian = antrian.map((a: any) => {
-      if (a.dokter) {
-        a.dokter.spesialisasi = a.dokter.poli?.namaPoli || "Umum";
-      }
-      return a;
-    });
+    const mappedAntrian = antrian.map((a) => ({
+      ...a,
+      dokter: a.dokter
+        ? {
+            ...a.dokter,
+            spesialisasi: a.dokter.poli?.namaPoli || "Umum",
+          }
+        : null,
+    }));
 
     return NextResponse.json({ success: true, data: mappedAntrian });
   } catch (error) {

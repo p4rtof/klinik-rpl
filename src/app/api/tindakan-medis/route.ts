@@ -18,7 +18,7 @@ export async function GET() {
       success: true,
       data: data,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, error: "Gagal mengambil data tindakan" },
       { status: 500 }

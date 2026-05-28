@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { updateJadwalFullSchema } from "@/lib/validations";
 
 // 1. GET: Ambil detail antrian
 export async function GET(
@@ -37,7 +36,7 @@ export async function GET(
     };
 
     return NextResponse.json({ success: true, data: mappedJadwal });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
   }
 }
@@ -116,7 +115,7 @@ export async function PUT(
       data: { status: body.status },
     });
     return NextResponse.json({ success: true, data: updated });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: "Gagal update status" }, { status: 500 });
   }
 }

@@ -42,34 +42,25 @@ export async function GET(
     });
 
     // Adapt for frontend backward-compatibility where 'spesialisasi' and flat strings are expected
-    const mapped = rekamMedis.map((rm: any) => {
-      const flatRm = { ...rm };
-      if (flatRm.dokter) {
-        flatRm.dokter.spesialisasi = flatRm.dokter.poli?.namaPoli || "Umum";
-      }
-      
-      // Map diagnosis to old flat structure for views that expect a raw string list
-      if (flatRm.diagnosis) {
-        flatRm.diagnosis = flatRm.diagnosis.map((d: any) => ({
+    const mapped = rekamMedis.map((rm) => {
+      return {
+        ...rm,
+        dokter: rm.dokter
+          ? {
+              ...rm.dokter,
+              spesialisasi: rm.dokter.poli?.namaPoli || "Umum",
+            }
+          : null,
+        diagnosis: rm.diagnosis.map((d) => ({
           ...d,
           diagnosis: d.penyakit?.namaPenyakit || d.catatan || ""
-        }));
-      }
-
-      // Map resep to old structure
-      if (flatRm.resep) {
-        flatRm.resep = flatRm.resep.map((r: any) => ({
+        })),
+        resep: rm.resep.map((r) => ({
           ...r,
           obatId: r.obat?.namaObat || r.obatId
-        }));
-      }
-
-      // Map tindakan to old comma-separated list
-      if (flatRm.rekamMedisTindakan) {
-        flatRm.tindakan = flatRm.rekamMedisTindakan.map((rt: any) => rt.tindakan?.namaTindakan).join(", ");
-      }
-
-      return flatRm;
+        })),
+        tindakan: rm.rekamMedisTindakan.map((rt) => rt.tindakan?.namaTindakan).join(", ")
+      };
     });
 
     return NextResponse.json({ success: true, data: mapped });
