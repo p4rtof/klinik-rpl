@@ -57,6 +57,7 @@ export default function PeriksaPage() {
     catatanTambahan: "",
   });
 
+  const [showKonfirmasi, setShowKonfirmasi] = useState(false);
   const [resepItems, setResepItems] = useState<ResepRow[]>([
     { obatId: "", aturan: "", dosis: "" },
   ]);
@@ -154,90 +155,85 @@ export default function PeriksaPage() {
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Ganti nama handleSubmit jadi handleValidasi (untuk tombol form)
+const handleValidasi = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    const validTindakan = tindakanItems.filter((t) => t.label.trim() !== "");
+  const validTindakan = tindakanItems.filter((t) => t.label.trim() !== "");
+  if (validTindakan.length === 0 || !formData.diagnosis.trim()) {
+    alert("Minimal 1 Tindakan dan Diagnosis wajib diisi!");
+    return;
+  }
 
-    if (validTindakan.length === 0 || !formData.diagnosis.trim()) {
-      alert("Minimal 1 Tindakan dan Diagnosis wajib diisi!");
+  // Tampilkan modal konfirmasi, jangan langsung submit
+  setShowKonfirmasi(true);
+};
+
+// Fungsi submit asli dipanggil dari modal
+const handleSubmit = async () => {
+  const validTindakan = tindakanItems.filter((t) => t.label.trim() !== "");
+  const resepValid = resepItems
+    .map((r) => ({ obatId: r.obatId.trim(), aturan: r.aturan.trim(), dosis: r.dosis.trim() }))
+    .filter((r) => r.obatId && r.aturan && r.dosis);
+
+  setIsSubmitting(true);
+  setShowKonfirmasi(false);
+  try {
+    const payload: any = {
+      pasienId: antrean.pasienId,
+      jadwalId: antrean.id,
+      keluhan: (formData.keluhanUtama || "Pemeriksaan rutin").trim(),
+      tindakan: validTindakan.map((t) => t.label).join(", "),
+      biayaTindakan: totalBiayaTindakan,
+      diagnosis: [{ diagnosis: formData.diagnosis.trim() }],
+      resep: resepValid,
+      anamnesisKeluhanUtama: formData.keluhanUtama?.trim() || undefined,
+      anamnesisRps: formData.rps?.trim() || undefined,
+      anamnesisRpd: formData.rpd?.trim() || undefined,
+      anamnesisRiwayatObat: formData.riwayatObat?.trim() || undefined,
+      anamnesisRiwayatKeluarga: formData.riwayatKeluarga?.trim() || undefined,
+      anamnesisKebiasaan: formData.kebiasaan?.trim() || undefined,
+      tdSistolik: formData.tdSistolik === "" ? undefined : Number(formData.tdSistolik),
+      tdDiastolik: formData.tdDiastolik === "" ? undefined : Number(formData.tdDiastolik),
+      nadi: formData.nadi === "" ? undefined : Number(formData.nadi),
+      rr: formData.rr === "" ? undefined : Number(formData.rr),
+      suhu: formData.suhu === "" ? undefined : Number(formData.suhu),
+      spo2: formData.spo2 === "" ? undefined : Number(formData.spo2),
+      bb: formData.bb === "" ? undefined : Number(formData.bb),
+      tb: formData.tb === "" ? undefined : Number(formData.tb),
+      bmi: bmi ?? undefined,
+      pemeriksaanFisik: formData.pemeriksaanFisik?.trim() || undefined,
+      edukasiPasien: formData.edukasiPasien?.trim() || undefined,
+      catatanTambahan: formData.catatanTambahan?.trim() || undefined,
+      rujukanCatatan: formData.rujukanCatatan?.trim() || undefined,
+    };
+
+    if (formData.perluRujukan && formData.tujuanRujukan.trim()) {
+      payload.rujukan = {
+        tujuan: formData.tujuanRujukan.trim(),
+        keterangan: formData.rujukanCatatan?.trim() || undefined,
+      };
+    }
+
+    const res = await fetch("/api/rekam-medis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const jsonRM = await res.json().catch(() => null);
+    if (!res.ok || !jsonRM?.success) {
+      alert(jsonRM?.error ?? "Gagal menyimpan pemeriksaan.");
       return;
     }
 
-    const resepValid = resepItems
-      .map((r) => ({
-        obatId: r.obatId.trim(),
-        aturan: r.aturan.trim(),
-        dosis: r.dosis.trim(),
-      }))
-      .filter((r) => r.obatId && r.aturan && r.dosis);
-
-    setIsSubmitting(true);
-    try {
-      const payload: any = {
-        pasienId: antrean.pasienId,
-        jadwalId: antrean.id,
-        keluhan: (formData.keluhanUtama || "Pemeriksaan rutin").trim(),
-
-        tindakan: validTindakan.map((t) => t.label).join(", "),
-        biayaTindakan: totalBiayaTindakan,
-
-        diagnosis: [{ diagnosis: formData.diagnosis.trim() }],
-        resep: resepValid,
-        anamnesisKeluhanUtama: formData.keluhanUtama?.trim() || undefined,
-        anamnesisRps: formData.rps?.trim() || undefined,
-        anamnesisRpd: formData.rpd?.trim() || undefined,
-        anamnesisRiwayatObat: formData.riwayatObat?.trim() || undefined,
-        anamnesisRiwayatKeluarga: formData.riwayatKeluarga?.trim() || undefined,
-        anamnesisKebiasaan: formData.kebiasaan?.trim() || undefined,
-        tdSistolik:
-          formData.tdSistolik === "" ? undefined : Number(formData.tdSistolik),
-        tdDiastolik:
-          formData.tdDiastolik === ""
-            ? undefined
-            : Number(formData.tdDiastolik),
-        nadi: formData.nadi === "" ? undefined : Number(formData.nadi),
-        rr: formData.rr === "" ? undefined : Number(formData.rr),
-        suhu: formData.suhu === "" ? undefined : Number(formData.suhu),
-        spo2: formData.spo2 === "" ? undefined : Number(formData.spo2),
-        bb: formData.bb === "" ? undefined : Number(formData.bb),
-        tb: formData.tb === "" ? undefined : Number(formData.tb),
-        bmi: bmi ?? undefined,
-        pemeriksaanFisik: formData.pemeriksaanFisik?.trim() || undefined,
-        edukasiPasien: formData.edukasiPasien?.trim() || undefined,
-        catatanTambahan: formData.catatanTambahan?.trim() || undefined,
-        rujukanCatatan: formData.rujukanCatatan?.trim() || undefined,
-      };
-
-      if (formData.perluRujukan && formData.tujuanRujukan.trim()) {
-        payload.rujukan = {
-          tujuan: formData.tujuanRujukan.trim(),
-          keterangan: formData.rujukanCatatan?.trim() || undefined,
-        };
-      }
-
-      const res = await fetch("/api/rekam-medis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const jsonRM = await res.json().catch(() => null);
-
-      if (!res.ok || !jsonRM?.success) {
-        console.error("Gagal simpan:", jsonRM);
-        alert(jsonRM?.error ?? "Gagal menyimpan pemeriksaan.");
-        return;
-      }
-
-      router.push("/dashboard-dokter");
-    } catch (err) {
-      console.error(err);
-      alert("Terjadi kesalahan koneksi.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    router.push("/dashboard-dokter");
+  } catch (err) {
+    alert("Terjadi kesalahan koneksi.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (isLoading) {
     return (
@@ -376,7 +372,7 @@ export default function PeriksaPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+        <form onSubmit={handleValidasi} className="p-8 space-y-8">
           {/* TINDAKAN + DIAGNOSIS */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* MULTIPLE TINDAKAN */}
@@ -818,6 +814,77 @@ export default function PeriksaPage() {
           </div>
         </form>
       </div>
+      {/* MODAL KONFIRMASI SIMPAN */}
+{showKonfirmasi && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
+      <div className="bg-primary p-6 text-white text-center">
+        <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-black">Simpan Rekam Medis?</h2>
+      </div>
+
+      <div className="p-6 space-y-3">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+          <div className="flex gap-3 items-start">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <div>
+              <p className="font-black text-red-800 text-sm">Perhatian!</p>
+              <p className="text-red-700 text-sm font-medium mt-0.5">
+                Data rekam medis yang sudah disimpan <span className="font-black">tidak dapat diubah</span>. Pastikan semua data sudah benar sebelum melanjutkan.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gray-50 rounded-2xl p-4 space-y-2 text-sm font-semibold">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Pasien</span>
+            <span className="text-gray-800 font-bold uppercase">{antrean?.pasien?.nama}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Diagnosis</span>
+            <span className="text-gray-800 font-bold">{formData.diagnosis}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Total Biaya</span>
+            <span className="text-primary font-black">Rp {totalBiayaTindakan.toLocaleString("id-ID")}</span>
+          </div>
+          {formData.perluRujukan && formData.tujuanRujukan && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Rujukan ke</span>
+              <span className="text-orange-600 font-bold">{formData.tujuanRujukan}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="px-6 pb-6 flex gap-3">
+        <button
+          type="button"
+          onClick={() => setShowKonfirmasi(false)}
+          disabled={isSubmitting}
+          className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all disabled:opacity-50"
+        >
+          Periksa Lagi
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="flex-1 bg-primary text-white py-3 rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 disabled:opacity-60"
+        >
+          {isSubmitting ? "Menyimpan..." : "Ya, Simpan"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
@@ -838,6 +905,10 @@ function InputNumber(props: {
         onChange={(e) => props.onChange(e.target.value)}
         className="w-full border-2 border-gray-100 p-3 rounded-xl outline-none font-bold bg-white focus:border-primary"
       />
+
+      
     </div>
+
+    
   );
 }

@@ -1,23 +1,21 @@
-import type { Metadata } from "next";
-import "./globals.css"; // Tetap import ini karena font Calibri diatur di sini
+import { Poppins } from "next/font/google";
+import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Klinik dr. Yofli",
-  description: "Sistem Manajemen Klinik RPL",
-  icons: {
-    icon: "/icon.png",
-  },
-};
+// 1. Panggil Poppins dan atur ketebalan (weight) yang mau dipakai
+const poppins = Poppins({ 
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"] 
+});
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="id">
-      {/* Cukup bersihkan bagian className bawaan Inter tadi */}
-      <body className="bg-[#F4F7FE] min-h-screen text-black antialiased">
+      {/* 2. Terapkan class Poppins ke body */}
+      <body className={poppins.className}>
         {children}
       </body>
     </html>
