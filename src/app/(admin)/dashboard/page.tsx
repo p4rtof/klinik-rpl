@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const now = new Date();
   const todayDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
+  const [notif, setNotif] = useState<string | null>(null);
   // --- STATE DATA ---
   const [dataKunjungan, setDataKunjungan] = useState<any[]>([]);
   const [pasienList, setPasienList] = useState<any[]>([]);
@@ -41,6 +42,7 @@ export default function DashboardPage() {
     keluhan: "",
     status: "",
     tanggal: "",
+    jam: "",
   });
 
   // FILTER / SORT / PAGINATION
@@ -85,12 +87,14 @@ export default function DashboardPage() {
       if (jsonAntrean.success) {
         setDataKunjungan(jsonAntrean.data);
 
-        // Ringkasan ambil dari hari ini aja
+        // Ringkasan ambil dari hari ini ATAU yang terlewat tapi masih MENUNGGU
         const dataHariIni = jsonAntrean.data.filter((a: any) => {
           const tgl = a.tanggal
             ? new Date(a.tanggal).toISOString().split("T")[0]
             : "";
-          return tgl === todayDate;
+          return (
+            tgl === todayDate || (tgl < todayDate && a.status === "MENUNGGU")
+          );
         });
 
         const belum = dataHariIni.filter(
@@ -104,9 +108,19 @@ export default function DashboardPage() {
         // Filter yang menunggu, lalu urutkan dari nomor terkecil
         const next = dataHariIni
           .filter((a: any) => a.status === "MENUNGGU")
-          .sort(
-            (a: any, b: any) => (a.nomorAntrian || 0) - (b.nomorAntrian || 0),
-          )[0];
+          .sort((a: any, b: any) => {
+            // Ambil waktu dari tanggal antrean
+            const dateA = new Date(a.tanggal || 0).getTime();
+            const dateB = new Date(b.tanggal || 0).getTime();
+
+            // 1. Urutkan berdasarkan tanggal lebih dulu (yang kemarin/terlewat dipanggil duluan)
+            if (dateA !== dateB) {
+              return dateA - dateB;
+            }
+
+            // 2. Kalau tanggalnya sama (misal sama-sama hari ini), baru urutkan dari nomor antrean terkecil
+            return (a.nomorAntrian || 0) - (b.nomorAntrian || 0);
+          })[0];
 
         if (next) {
           setAntreanNext({
@@ -155,7 +169,7 @@ export default function DashboardPage() {
         ? new Date(item.tanggal).toISOString().split("T")[0]
         : "";
 
-      if (itemDate < todayDate) return false;
+      if (itemDate < todayDate && item.status !== "MENUNGGU") return false;
 
       const nama = (item.pasien?.nama || "").toLowerCase();
       const rm = (item.pasien?.noRm || "").toLowerCase();
@@ -267,6 +281,9 @@ export default function DashboardPage() {
             .replace(".", ":"),
         }));
         fetchData();
+        // TAMBAHKAN 2 BARIS INI:
+        setNotif("Berhasil! Kunjungan baru sukses ditambahkan.");
+        setTimeout(() => setNotif(null), 3000);
       } else {
         alert("Gagal: " + (json.issues?.[0]?.message || json.error));
       }
@@ -288,8 +305,11 @@ export default function DashboardPage() {
       const res = await fetch(`/api/antrian/${deleteTargetId}`, {
         method: "DELETE",
       });
-      if (res.ok) fetchData();
-      else alert("Gagal menghapus kunjungan.");
+      if (res.ok) {
+        fetchData();
+        setNotif("Kunjungan dihapus");
+        setTimeout(() => setNotif(null), 3000);
+      } else alert("Gagal menghapus kunjungan.");
     } catch (err) {
       alert("Terjadi kesalahan saat menghapus.");
     } finally {
@@ -307,6 +327,7 @@ export default function DashboardPage() {
       keluhan: item.keluhan || "",
       status: item.status,
       tanggal: tgl,
+      jam: item.jam || "",
     });
     setShowEditModal(true);
   };
@@ -320,6 +341,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           keluhan: editFormData.keluhan,
           status: editFormData.status,
+          jam: editFormData.jam,
           tanggal: editFormData.tanggal
             ? new Date(editFormData.tanggal).toISOString()
             : undefined,
@@ -328,6 +350,8 @@ export default function DashboardPage() {
       if (res.ok) {
         setShowEditModal(false);
         fetchData();
+        setNotif("Mantap! Data kunjungan berhasil diperbarui.");
+        setTimeout(() => setNotif(null), 3000);
       } else alert("Gagal memperbarui kunjungan.");
     } catch (err) {
       alert("Terjadi kesalahan.");
@@ -401,11 +425,11 @@ export default function DashboardPage() {
           <h3 className="font-bold text-gray-800 text-xl mb-2">
             Antrean Berikutnya:
           </h3>
-          <div className="flex items-center justify-between">
-            <p className="text-primary text-xl font-bold uppercase truncate max-w-[150px]">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-primary text-2xl font-bold uppercase break-words leading-snug">
               {antreanNext.nama}
             </p>
-            <p className="text-6xl font-black text-primary">
+            <p className="text-6xl font-black text-primary flex-shrink-0">
               {antreanNext.nomor}
             </p>
           </div>
@@ -495,9 +519,13 @@ export default function DashboardPage() {
                       ? `${hitungUsia(item.pasien.tanggalLahir)} Tahun`
                       : "-"}
                   </td>
-                  <td className="p-3 w-[12%]">
+                  <td className="px-4 py-3 text-md font-bold text-center">
                     {item.tanggal
-                      ? new Date(item.tanggal).toLocaleDateString("id-ID")
+                      ? new Date(item.tanggal).toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
                       : "-"}
                   </td>
                   <td className="p-3 w-[10%]">{item.jam}</td>
@@ -652,7 +680,8 @@ export default function DashboardPage() {
                   </Link>
                 </div>
                 <p className="text-xs font-medium text-orange-600 italic mt-2 bg-orange-50 p-2 rounded-lg border border-orange-100">
-                  * Pasien belum terdaftar? Silahkan daftar pasien baru terlebih dahulu melalui tombol (+)
+                  * Pasien belum terdaftar? Silahkan daftar pasien baru terlebih
+                  dahulu melalui tombol (+)
                 </p>
               </div>
               <div>
@@ -759,12 +788,13 @@ export default function DashboardPage() {
               </div>
               <div className="flex justify-between border-b border-gray-100 pb-2">
                 <p>Tanggal:</p>
-                <p>
+                <p className="text-right">
                   {selectedKunjungan.tanggal
                     ? new Date(selectedKunjungan.tanggal).toLocaleDateString(
                         "id-ID",
                       )
                     : "-"}
+                  {selectedKunjungan.jam ? ` • ${selectedKunjungan.jam}` : ""}
                 </p>
               </div>
               <div className="flex justify-between border-b border-gray-100 pb-2">
@@ -775,6 +805,7 @@ export default function DashboardPage() {
                 <p>Status:</p>
                 <p>{selectedKunjungan.status}</p>
               </div>
+
               <div className="mt-4">
                 <p className="text-gray-400 text-sm">Keluhan:</p>
                 <p className="bg-gray-50 p-3 rounded-xl italic mt-1">
@@ -817,6 +848,22 @@ export default function DashboardPage() {
                     })
                   }
                   className="w-full border-2 border-gray-200 p-3 rounded-xl outline-none mt-1 focus:border-yellow-500 font-semibold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase">
+                  Jam Kunjungan
+                </label>
+                <input
+                  type="time"
+                  value={editFormData.jam}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      jam: e.target.value,
+                    })
+                  }
+                  className="w-full border-2 border-gray-200 p-3 rounded-xl mt-1 outline-none focus:border-yellow-500 font-semibold"
                 />
               </div>
               <div>
@@ -907,6 +954,10 @@ export default function DashboardPage() {
                   onClick={() => {
                     setShowDeleteModal(false);
                     setDeleteTargetId(null);
+                    setNotif(
+                      "Kunjungan tidak jadi dihapus and tetap berada pada antrean.",
+                    );
+                    setTimeout(() => setNotif(null), 3500);
                   }}
                   className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
                 >
@@ -922,6 +973,13 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {notif && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-white/10 animate-in fade-in slide-in-from-bottom-5 duration-300 font-bold text-sm">
+          {" "}
+          <span className="text-lg">ℹ️</span>
+          <span>{notif}</span>
         </div>
       )}
     </div>

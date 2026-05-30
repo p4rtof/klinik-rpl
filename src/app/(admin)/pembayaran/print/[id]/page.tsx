@@ -69,6 +69,11 @@ export default async function PrintStrukPage({
   const rekamMedis: any = pembayaran.rekamMedis;
   const dokter = rekamMedis?.dokter;
   const umur = pasien.tanggalLahir ? hitungUmur(pasien.tanggalLahir) : "";
+  const tglKunjunganRaw = rekamMedis?.tanggal || pembayaran.createdAt;
+  const tglKunjungan = tglKunjunganRaw ? formatTanggalIndo(new Date(tglKunjunganRaw)) : "-";
+
+  // Pecah teks tindakan koma (,) menjadi list array
+  const tindakanArray = rekamMedis?.tindakan ? rekamMedis.tindakan.split(", ") : [];
 
   // Pecah teks tindakan koma (,) menjadi list array
   const tindakanArray = rekamMedis?.tindakan ? rekamMedis.tindakan.split(", ") : [];
@@ -111,6 +116,11 @@ export default async function PrintStrukPage({
             <div>
               <span className="label">No. Transaksi</span>
               <span className="value">{pembayaran.id.split("-")[0].toUpperCase()}</span>
+            </div>
+            {/* --- TAMBAHKAN TANGGAL KUNJUNGAN DI SINI --- */}
+            <div>
+              <span className="label">Tgl Kunjungan</span>
+              <span className="value">{tglKunjungan}</span>
             </div>
             <div>
               <span className="label">Tanggal Cetak</span>
@@ -293,7 +303,7 @@ export default async function PrintStrukPage({
         }
         .meta > div {
           display: grid;
-          grid-template-columns: 76px 1fr;
+          grid-template-columns: 90px 1fr;
           gap: 8px;
           margin-bottom: 4px;
         }

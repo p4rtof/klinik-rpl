@@ -40,12 +40,12 @@ export default function DashboardDokterPage() {
       if (json.success) {
         const semuaData = json.data;
 
-        // Pisahkan data yang tanggalnya HARI INI dan BESOK/KEDEPAN
+        // Pisahkan data yang tanggalnya HARI INI (termasuk yg terlewat & MENUNGGU) dan BESOK
         const dataHariIni = semuaData.filter((a: any) => {
           const tglAntrean = a.tanggal
             ? new Date(a.tanggal).toISOString().split("T")[0]
             : "";
-          return tglAntrean === todayString;
+          return tglAntrean === todayString || (tglAntrean < todayString && a.status === "MENUNGGU");
         });
 
         const dataBesok = semuaData.filter((a: any) => {
@@ -103,7 +103,11 @@ export default function DashboardDokterPage() {
       const itemDate = item.tanggal
         ? new Date(item.tanggal).toISOString().split("T")[0]
         : "";
-      if (itemDate !== todayString) return false;
+      const isToday = itemDate === todayString;
+      const isPastWaiting = itemDate < todayString && item.status === "MENUNGGU";
+
+      // Kalau bukan hari ini DAN bukan antrean lama yang nunggu, sembunyikan!
+      if (!isToday && !isPastWaiting) return false;
 
       // 2. FILTER PENCARIAN
       const nama = (item.pasien?.nama || "").toLowerCase();
@@ -117,6 +121,15 @@ export default function DashboardDokterPage() {
       if (sortBy === "default") {
         if (a.status === "MENUNGGU" && b.status !== "MENUNGGU") return -1;
         if (a.status !== "MENUNGGU" && b.status === "MENUNGGU") return 1;
+        // 1. Urutkan berdasarkan tanggal terlama lebih dulu (pasien kemarin dipanggil duluan)
+        const dateA = new Date(a.tanggal || 0).getTime();
+        const dateB = new Date(b.tanggal || 0).getTime();
+        
+        if (dateA !== dateB) {
+          return dateA - dateB; 
+        }
+
+        // 2. Jika tanggalnya sama (sama-sama hari ini), urutkan dari nomor antrean terkecil
         return (a.nomorAntrian || 0) - (b.nomorAntrian || 0);
       }
       if (sortBy === "rm")
@@ -331,13 +344,15 @@ export default function DashboardDokterPage() {
         <table className="w-full">
           <thead className="bg-primary text-white uppercase text-lg font-black">
             <tr>
-              <th className="px-2 py-3 text-center w-[12%]">Nomor RM</th>
-              <th className="px-2 py-3 text-left w-[20%]">Nama Pasien</th>
+              <th className="px-2 py-3 text-center w-[10%]">Nomor RM</th>
+              <th className="px-2 py-3 text-left w-[17%]">Nama Pasien</th>
               <th className="px-2 py-3 text-center w-[12%]">Jenis Kelamin</th>
+              <th className="px-4 py-3 text-center w-[14%]">Tgl Kunjungan</th>
+              {/* <th className="px-4 py-3 text-center">Jam</th> */}
               <th className="px-2 py-3 text-center w-[12%]">Usia</th>
-              <th className="px-2 py-3 text-left w-[20%]">Keluhan</th>
+              <th className="px-2 py-3 text-left w-[15%]">Keluhan</th>
               <th className="px-2 py-3 text-center w-[12%]">Status</th>
-              <th className="px-2 py-3 text-center w-[12%]">Aksi</th>
+              <th className="px-2 py-3 text-center ">Aksi</th>
             </tr>
           </thead>
 
@@ -387,6 +402,15 @@ export default function DashboardDokterPage() {
                       ? "Laki-laki"
                       : "Perempuan"}
                   </td>
+                  <td className="px-4 py-3 text-md font-bold text-center">
+        {item.tanggal
+          ? new Date(item.tanggal).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : "-"}
+      </td>
                   <td className="text-center">
                     {item.pasien?.tanggalLahir
                       ? `${hitungUsia(item.pasien.tanggalLahir)} Tahun`

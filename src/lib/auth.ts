@@ -26,4 +26,3 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
     return null;
   }
 }
-

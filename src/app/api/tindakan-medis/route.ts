@@ -13,6 +13,6 @@ const PILIHAN_TINDAKAN = [
 export async function GET() {
   return NextResponse.json({
     success: true,
-    data: PILIHAN_TINDAKAN
+    data: PILIHAN_TINDAKAN,
   });
 }
