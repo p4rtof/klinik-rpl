@@ -37,7 +37,7 @@ export default async function PrintStrukPage({
   const host = headersList.get("host") || "localhost:3000";
   const protocol = host.includes("localhost") ? "http" : "https";
   
-  let pilihanTindakanFromBackend: any[] = [];
+  let pilihanTindakanFromBackend: Array<{ id: string; label: string; harga: number }> = [];
   try {
     const res = await fetch(`${protocol}://${host}/api/tindakan-medis`, {
       cache: "no-store"
@@ -66,14 +66,11 @@ export default async function PrintStrukPage({
   if (!pembayaran) return notFound();
 
   const pasien = pembayaran.pasien;
-  const rekamMedis: any = pembayaran.rekamMedis;
+  const rekamMedis = pembayaran.rekamMedis;
   const dokter = rekamMedis?.dokter;
   const umur = pasien.tanggalLahir ? hitungUmur(pasien.tanggalLahir) : "";
   const tglKunjunganRaw = rekamMedis?.tanggal || pembayaran.createdAt;
   const tglKunjungan = tglKunjunganRaw ? formatTanggalIndo(new Date(tglKunjunganRaw)) : "-";
-
-  // Pecah teks tindakan koma (,) menjadi list array
-  const tindakanArray = rekamMedis?.tindakan ? rekamMedis.tindakan.split(", ") : [];
 
   // Pecah teks tindakan koma (,) menjadi list array
   const tindakanArray = rekamMedis?.tindakan ? rekamMedis.tindakan.split(", ") : [];
@@ -162,7 +159,7 @@ export default async function PrintStrukPage({
             <div className="font-bold text-[13px] mb-1">Hasil Diagnosis:</div>
             {rekamMedis?.diagnosis && rekamMedis.diagnosis.length > 0 ? (
               <ul className="pl-4 m-0" style={{ fontSize: "12.5px" }}>
-                {rekamMedis.diagnosis.map((d: any, i: number) => (
+                {(rekamMedis.diagnosis as Array<{ diagnosis: string; deskripsi?: string }>).map((d, i) => (
                   <li key={i}>{d.diagnosis || d.deskripsi}</li>
                 ))}
               </ul>
@@ -170,7 +167,7 @@ export default async function PrintStrukPage({
               <div className="text-[12.5px] italic text-gray-500">- Tidak ada catatan diagnosis.</div>
             )}
           </div>
-
+ 
           <div className="mb-4">
             <div className="font-bold text-[13px] mb-1">Tindakan Medis:</div>
             {tindakanArray.length > 0 ? (
@@ -192,7 +189,7 @@ export default async function PrintStrukPage({
               <div className="text-[12.5px] italic text-gray-500">- Tidak ada tindakan.</div>
             )}
           </div>
-
+ 
           <div>
             <div className="font-bold text-[13px] mb-2">Resep Obat:</div>
             {rekamMedis?.resep && rekamMedis.resep.length > 0 ? (
@@ -206,7 +203,7 @@ export default async function PrintStrukPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {rekamMedis.resep.map((r: any, i: number) => (
+                  {(rekamMedis.resep as Array<{ obatId: string; namaObat?: string; dosis: string; aturan: string; aturanPakai?: string }>).map((r, i) => (
                     <tr key={i}>
                       <td style={{ textAlign: "center" }}>{i + 1}</td>
                       <td>{r.obatId || r.namaObat}</td>
