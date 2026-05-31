@@ -880,7 +880,7 @@ function PeriksaPageContent() {
                   <div>
                     <p className="font-black text-red-800 text-sm">Perhatian!</p>
                     <p className="text-red-700 text-sm font-medium mt-0.5">
-                      Data rekam medis yang sudah disimpan <span className="font-black">tidak dapat diubah</span>. Pastikan semua data sudah benar sebelum melanjutkan.
+                      Pastikan semua data sudah benar sebelum melanjutkan.
                     </p>
                   </div>
                 </div>

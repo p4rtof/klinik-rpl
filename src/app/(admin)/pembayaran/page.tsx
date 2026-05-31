@@ -121,18 +121,34 @@ export default function PembayaranPage() {
   };
 
   const handleHapus = async () => {
-    if (!deleteTargetId) return;
-    try {
-      const res = await fetch(`/api/pembayaran/${deleteTargetId}`, { method: "DELETE" });
-      if (res.ok) fetchPembayaran();
-      else showNotif("error", "Gagal menghapus data pembayaran.");
-    } catch (err) {
-      showNotif("error", "Terjadi kesalahan.");
-    } finally {
+  if (!deleteTargetId) return;
+  try {
+    // Cek status transaksi yang mau dihapus
+    const targetTransaksi = transaksiList.find((t) => t.id === deleteTargetId);
+    if (targetTransaksi?.status === "BELUM_BAYAR") {
       setShowDeleteModal(false);
       setDeleteTargetId(null);
+      showNotif("error", "Transaksi tidak dapat dihapus karena pembayaran belum lunas.");
+      return;
     }
-  };
+
+    const res = await fetch(`/api/pembayaran/${deleteTargetId}`, { method: "DELETE" });
+    if (res.ok) {
+      fetchPembayaran();
+      setShowDeleteModal(false);
+      setDeleteTargetId(null);
+      setNotif("Transaksi berhasil dihapus.");
+      setTimeout(() => setNotif(null), 3000);
+    } else {
+      showNotif("error", "Gagal menghapus data pembayaran.");
+    }
+  } catch (err) {
+    showNotif("error", "Terjadi kesalahan.");
+  } finally {
+    setShowDeleteModal(false);
+    setDeleteTargetId(null);
+  }
+};
 
   const submitPembayaran = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -475,9 +491,9 @@ export default function PembayaranPage() {
                   <label className="text-sm font-bold text-gray-600 mb-2 block">Pilih Rekening Klinik</label>
                   <select required value={bankTerpilih} onChange={(e) => setBankTerpilih(e.target.value)} className="w-full border-2 border-gray-200 p-3 rounded-xl outline-none font-bold text-gray-700 focus:border-primary">
                     <option value="">-- Pilih Bank --</option>
-                    <option value="BCA">BCA - 1234567890 (Klinik RPL)</option>
-                    <option value="MANDIRI">Mandiri - 0987654321 (Klinik RPL)</option>
-                    <option value="BRI">BRI - 1122334455 (Klinik RPL)</option>
+                    <option value="BCA">BCA - 1234567890 (Klinik dr.Yofli)</option>
+                    <option value="MANDIRI">Mandiri - 0987654321 (Klinik dr.Yofli)</option>
+                    <option value="BRI">BRI - 1122334455 (Klinik dr.Yofli)</option>
                   </select>
                 </div>
               )}

@@ -12,9 +12,11 @@ function RiwayatPasienPageContent() {
   const [pasien, setPasien] = useState<any>(null);
   const [riwayat, setRiwayat] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
   
   // State untuk menyimpan ID riwayat mana yang sedang dibuka detailnya
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pembayaranMap, setPembayaranMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -36,8 +38,22 @@ function RiwayatPasienPageContent() {
           const jsonRiwayat = await resRiwayat.json();
           
           if (jsonRiwayat.success) {
-            setRiwayat(jsonRiwayat.data);
-          }
+  setRiwayat(jsonRiwayat.data);
+
+  // Cek status pembayaran untuk setiap rekam medis
+  const map: Record<string, boolean> = {};
+  for (const rm of jsonRiwayat.data) {
+    const resPembayaran = await fetch(`/api/rekam-medis/${rm.id}`);
+    const jsonPembayaran = await resPembayaran.json();
+    if (jsonPembayaran.success) {
+      const sudahLunas = jsonPembayaran.data.pembayaran?.some(
+        (p: any) => p.status === "LUNAS"
+      );
+      map[rm.id] = sudahLunas;
+    }
+  }
+  setPembayaranMap(map);
+}
         }
       } catch (err) {
         console.error("Gagal memuat data:", err);
@@ -139,15 +155,17 @@ function RiwayatPasienPageContent() {
                     >
                       {expandedId === h.id ? "Tutup Detail" : "Lihat Detail"}
                     </button>
-                    <Link
-  href={`/edit-rekam-medis?id=${h.id}`}
-  className="text-md font-bold bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-lg transition flex items-center gap-1"
->
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-  Edit
-</Link>
+                    {!pembayaranMap[h.id] && (
+                      <Link
+                        href={`/edit-rekam-medis?id=${h.id}`}
+                        className="text-md font-bold bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-lg transition flex items-center gap-1"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Edit
+                      </Link>
+                    )}
                   </div>
                 </div>
 

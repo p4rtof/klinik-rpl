@@ -76,9 +76,9 @@ export default async function PrintStrukPage({
   const tindakanArray = rekamMedis?.tindakan ? rekamMedis.tindakan.split(", ") : [];
 
   let infoRekening = "CASH / TUNAI";
-  if (pembayaran.metode === "TRANSFER_BCA") infoRekening = "Transfer BCA (1234567890 a.n Klinik RPL)";
-  else if (pembayaran.metode === "TRANSFER_MANDIRI") infoRekening = "Transfer Mandiri (0987654321 a.n Klinik RPL)";
-  else if (pembayaran.metode === "TRANSFER_BRI") infoRekening = "Transfer BRI (1122334455 a.n Klinik RPL)";
+  if (pembayaran.metode === "TRANSFER_BCA") infoRekening = "Transfer BCA (1234567890 a.n Klinik dr.Yofli)";
+  else if (pembayaran.metode === "TRANSFER_MANDIRI") infoRekening = "Transfer Mandiri (0987654321 a.n Klinik dr.Yofli)";
+  else if (pembayaran.metode === "TRANSFER_BRI") infoRekening = "Transfer BRI (1122334455 a.n Klinik dr.Yofli)";
   else if (pembayaran.metode === "TRANSFER") infoRekening = "Transfer Bank";
 
   return (
