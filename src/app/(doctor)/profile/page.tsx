@@ -144,7 +144,7 @@ export default function ProfilDokterPage() {
       if (res.ok && json.success) {
         setProfile(json.data);
         setIsEditing(false);
-        alert("Profil berhasil disimpan.");
+        // alert("Profil berhasil disimpan.");
       } else {
         alert("Gagal simpan: " + (json.error || "Cek koneksi"));
       }
