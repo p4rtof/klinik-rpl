@@ -21,6 +21,13 @@ export default function DataPasienPage() {
   const [editId, setEditId] = useState<string | null>(null);
 
   const [notif, setNotif] = useState<string | null>(null);
+  const [showNotifModal, setShowNotifModal] = useState(false);
+const [notifData, setNotifData] = useState<{ type: "success" | "error"; message: string }>({ type: "success", message: "" });
+
+const showNotif = (type: "success" | "error", message: string) => {
+  setNotifData({ type, message });
+  setShowNotifModal(true);
+};
   // ==========================================
   // STATE & LOGIKA PAGINATION
   // ==========================================
@@ -96,46 +103,46 @@ export default function DataPasienPage() {
   const triggerDelete = (id: string) => setDeleteTarget(id);
 
   const executeDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      // 1. Ambil data antrean/kunjungan aktif untuk hari ini ke depan
-      const resAntrian = await fetch("/api/antrian");
-      const jsonAntrian = await resAntrian.json();
-
-      if (jsonAntrian.success) {
-        // 2. Cek apakah ada antrean milik pasien ini yang statusnya masih MENUNGGU
-        const adaKunjunganMenunggu = jsonAntrian.data.some(
-          (antrean: any) =>
-            antrean.pasienId === deleteTarget && antrean.status === "MENUNGGU"
-        );
-
-        // 3. Jika ada, batalkan penghapusan dan munculkan notifikasi peringatan
-        if (adaKunjunganMenunggu) {
-          setDeleteTarget(null);
-          setNotif("Gagal! Pasien ini masih masuk dalam daftar antrean tunggu.");
-          setTimeout(() => setNotif(null), 4000);
-          return; // Stop fungsi di sini
-        }
-      }
-
-      // 4. Jika tidak ada antrean menggantung, lanjut hapus seperti biasa
-      const res = await fetch(`/api/pasien/${deleteTarget}`, {
-        method: "DELETE",
-        headers: { "x-user-role": "ADMIN" },
-      });
-      
-      if (res.ok) {
+  if (!deleteTarget) return;
+  try {
+    const resAntrian = await fetch("/api/antrian");
+    const jsonAntrian = await resAntrian.json();
+    if (jsonAntrian.success) {
+      const adaMenunggu = jsonAntrian.data.some(
+        (a: any) => a.pasienId === deleteTarget && a.status === "MENUNGGU"
+      );
+      if (adaMenunggu) {
         setDeleteTarget(null);
-        fetchPasien();
-        setNotif("Berhasil! Data pasien telah dihapus permanen.");
-        setTimeout(() => setNotif(null), 3000);
-      } else {
-        alert("Gagal menghapus data");
+        showNotif("error", "Pasien ini masih memiliki kunjungan yang menunggu. Selesaikan kunjungan terlebih dahulu.");
+        return;
       }
-    } catch (err) {
-      alert("Terjadi kesalahan server");
     }
-  };
+
+    const resPembayaran = await fetch(`/api/pembayaran?pasienId=${deleteTarget}&status=BELUM_BAYAR`, {
+      headers: { "x-user-role": "ADMIN" },
+    });
+    const jsonPembayaran = await resPembayaran.json();
+    if (jsonPembayaran.success && jsonPembayaran.data.length > 0) {
+      setDeleteTarget(null);
+      showNotif("error", "Pasien ini masih memiliki tagihan yang belum lunas. Selesaikan pembayaran terlebih dahulu.");
+      return;
+    }
+
+    const res = await fetch(`/api/pasien/${deleteTarget}`, {
+      method: "DELETE",
+      headers: { "x-user-role": "ADMIN" },
+    });
+    if (res.ok) {
+      setDeleteTarget(null);
+      fetchPasien();
+      showNotif("success", "Data pasien telah dihapus permanen.");
+    } else {
+      showNotif("error", "Gagal menghapus data pasien.");
+    }
+  } catch (err) {
+    showNotif("error", "Terjadi kesalahan server.");
+  }
+};
 
   // --- LOGIKA EDIT ---
   const handleEdit = (pasien: any) => {
@@ -288,17 +295,17 @@ export default function DataPasienPage() {
                   <td className="px-4 py-2.5">{pasien.jenisKelamin === "LAKI_LAKI" ? "Laki-laki" : "Perempuan"}</td>
                   <td className="px-4 py-2.5">{pasien.noTelepon || "-"}</td>
                   <td className="px-4 py-2.5 flex justify-center items-center gap-2">
-                    <Link href={`/data-pasien/${pasien.id}`} className="p-2 hover:bg-blue-100 rounded-lg transition-colors inline-block" title="Detail">
+                    <Link href={`/data-pasien/${pasien.id}`} className="p-2 hover:bg-indigo-200 bg-indigo-100 rounded-lg transition-colors inline-block" title="Detail">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
                     </Link>
-                    <button onClick={() => handleEdit(pasien)} className="p-2 hover:bg-yellow-100 rounded-lg transition-colors" title="Edit">
+                    <button onClick={() => handleEdit(pasien)} className="p-2 hover:bg-yellow-200 bg-yellow-100 rounded-lg transition-colors" title="Edit">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    <button onClick={() => triggerDelete(pasien.id)} className="p-2 hover:bg-red-100 rounded-lg transition-colors" title="Hapus">
+                    <button onClick={() => triggerDelete(pasien.id)} className="p-2 hover:bg-red-200 bg-red-100 rounded-lg transition-colors" title="Hapus">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
@@ -379,33 +386,75 @@ export default function DataPasienPage() {
 
       {/* MODAL DELETE */}
       {deleteTarget && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-center animate-in zoom-in duration-200">
-          <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full">
-            <h3 className="text-2xl font-bold mb-2 text-black">Hapus Data?</h3>
-            <p className="text-gray-500 mb-8 leading-relaxed">Data pasien yang dihapus tidak dapat dikembalikan. Apakah Anda yakin?</p>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => {
-                  setDeleteTarget(null);
-                  setNotif("Aman! Data pasien tidak jadi dihapus.");
-                  setTimeout(() => setNotif(null), 3000);
-                }} 
-                className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 font-bold text-gray-600 transition-colors"
-              >
-                Batal
-              </button>
-              <button onClick={executeDelete} className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 font-bold text-white shadow-lg transition-colors">Ya, Hapus</button>
-            </div>
-          </div>
-        </div>
-      )}
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-center animate-in zoom-in duration-200">
+    <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full">
+      <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </div>
+      <h3 className="text-2xl font-bold mb-2 text-black">Hapus Data Pasien?</h3>
+      <p className="text-gray-500 mb-3 leading-relaxed">Data pasien yang dihapus <span className="font-bold text-red-600">tidak dapat dikembalikan</span>.</p>
+      <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-6 text-left">
+        <p className="text-xs font-bold text-orange-700 uppercase mb-1">Yang ikut terhapus:</p>
+        <ul className="text-sm text-orange-600 font-semibold space-y-1">
+          <li>• Semua riwayat rekam medis</li>
+          <li>• Semua data jadwal kunjungan</li>
+          <li>• Semua data pembayaran</li>
+        </ul>
+      </div>
+      <p className="text-gray-500 text-sm mb-6">Pastikan pasien tidak memiliki kunjungan aktif dan tagihan yang belum lunas.</p>
+      <div className="flex gap-3">
+        <button
+          onClick={() => {
+            setDeleteTarget(null);
+            setNotif("Aman! Data pasien tidak jadi dihapus.");
+            setTimeout(() => setNotif(null), 3000);
+          }}
+          className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 font-bold text-gray-600 transition-colors"
+        >
+          Batal
+        </button>
+        <button
+          onClick={executeDelete}
+          className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 font-bold text-white shadow-lg transition-colors active:scale-95"
+        >
+          Ya, Hapus
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
-      {notif && (
-        <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-primary  text-white px-6 py-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-3 border-2 font-bold text-sm animate-in fade-in slide-in-from-top-5 duration-300">
-          <span className="text-lg">ℹ️</span>
-          <span>{notif}</span>
+      {showNotifModal && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+    <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
+      <div className="p-8 flex flex-col items-center text-center">
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${notifData.type === "success" ? "bg-green-100" : "bg-red-100"}`}>
+          {notifData.type === "success" ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
         </div>
-      )}
+        <h2 className={`text-2xl font-black mb-2 ${notifData.type === "success" ? "text-green-700" : "text-red-700"}`}>
+          {notifData.type === "success" ? "Berhasil!" : "Gagal!"}
+        </h2>
+        <p className="text-gray-500 font-medium mb-6">{notifData.message}</p>
+        <button
+          onClick={() => setShowNotifModal(false)}
+          className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+        >
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

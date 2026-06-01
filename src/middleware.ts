@@ -8,7 +8,7 @@ const key = new TextEncoder().encode(JWT_SECRET_KEY);
 // Route yang hanya bisa diakses ADMIN
 const ADMIN_ROUTES = ["/dashboard", "/data-pasien", "/pembayaran"];
 // Route yang hanya bisa diakses DOKTER
-const DOCTOR_ROUTES = ["/dashboard-dokter", "/jadwal-saya", "/periksa", "/rekam-medis", "/profile"];
+const DOCTOR_ROUTES = ["/dashboard-dokter", "/jadwal-saya", "/periksa", "/rekam-medis", "/profile", "/edit-rekam-medis"];
 
 function isAdminRoute(pathname: string) {
   return ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
@@ -98,5 +98,6 @@ export const config = {
     "/profile",
     "/profile/:path*",
     "/login",
+    "/edit-rekam-medis/:path*",
   ],
 };

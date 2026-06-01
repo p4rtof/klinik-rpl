@@ -6,6 +6,8 @@ export default function PembayaranPage() {
   const [transaksiList, setTransaksiList] = useState<any[]>([]);
   const [statsPembayaran, setStatsPembayaran] = useState({ total: 0, lunas: 0, pending: 0 });
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterTanggalMulai, setFilterTanggalMulai] = useState("");
+  const [filterTanggalAkhir, setFilterTanggalAkhir] = useState("");
   const [isTableLoading, setIsTableLoading] = useState(true);
   const [notif, setNotif] = useState<string | null>(null); 
 
@@ -62,13 +64,19 @@ export default function PembayaranPage() {
 
   useEffect(() => { fetchPembayaran(); }, []);
 
-  const filteredList = transaksiList.filter(
-    (item) =>
-      item.pasien?.nama
-        ?.toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredList = transaksiList.filter((item) => {
+  const matchSearch =
+    item.pasien?.nama?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.id.toLowerCase().includes(searchQuery.toLowerCase());
+
+  const tglItem = item.tanggal || item.rekamMedis?.tanggal || item.createdAt;
+  const tglStr = tglItem ? new Date(tglItem).toISOString().split("T")[0] : "";
+
+  const matchMulai = !filterTanggalMulai || tglStr >= filterTanggalMulai;
+  const matchAkhir = !filterTanggalAkhir || tglStr <= filterTanggalAkhir;
+
+  return matchSearch && matchMulai && matchAkhir;
+});
 
   // ==========================================
   // STATE & LOGIKA PAGINATION (Sama seperti Data Pasien)
@@ -113,18 +121,34 @@ export default function PembayaranPage() {
   };
 
   const handleHapus = async () => {
-    if (!deleteTargetId) return;
-    try {
-      const res = await fetch(`/api/pembayaran/${deleteTargetId}`, { method: "DELETE" });
-      if (res.ok) fetchPembayaran();
-      else showNotif("error", "Gagal menghapus data pembayaran.");
-    } catch (err) {
-      showNotif("error", "Terjadi kesalahan.");
-    } finally {
+  if (!deleteTargetId) return;
+  try {
+    // Cek status transaksi yang mau dihapus
+    const targetTransaksi = transaksiList.find((t) => t.id === deleteTargetId);
+    if (targetTransaksi?.status === "BELUM_BAYAR") {
       setShowDeleteModal(false);
       setDeleteTargetId(null);
+      showNotif("error", "Transaksi tidak dapat dihapus karena pembayaran belum lunas.");
+      return;
     }
-  };
+
+    const res = await fetch(`/api/pembayaran/${deleteTargetId}`, { method: "DELETE" });
+    if (res.ok) {
+      fetchPembayaran();
+      setShowDeleteModal(false);
+      setDeleteTargetId(null);
+      setNotif("Transaksi berhasil dihapus.");
+      setTimeout(() => setNotif(null), 3000);
+    } else {
+      showNotif("error", "Gagal menghapus data pembayaran.");
+    }
+  } catch (err) {
+    showNotif("error", "Terjadi kesalahan.");
+  } finally {
+    setShowDeleteModal(false);
+    setDeleteTargetId(null);
+  }
+};
 
   const submitPembayaran = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -308,11 +332,41 @@ export default function PembayaranPage() {
         </div>
       </div>
 
-      <div className="bg-white p-1 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
-        <div className="relative flex items-center w-full max-w-md">
-          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari ID Transaksi atau Nama Pasien" className="w-full border-2 border-gray-50 rounded-xl py-3 pl-4 pr-4 text-lg outline-none focus:border-primary transition-all bg-gray-50/50" />
-        </div>
-      </div>
+      <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap gap-3 items-center">
+  <input
+    type="text"
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    placeholder="Cari ID Transaksi atau Nama Pasien"
+    className="flex-1 min-w-[200px] border-2 border-gray-50 rounded-xl py-3 px-4 text-lg outline-none focus:border-primary transition-all bg-gray-50/50"
+  />
+  <div className="flex items-center gap-2">
+    <label className="text-sm font-bold text-gray-400 whitespace-nowrap">Dari:</label>
+    <input
+      type="date"
+      value={filterTanggalMulai}
+      onChange={(e) => setFilterTanggalMulai(e.target.value)}
+      className="border-2 border-gray-50 rounded-xl py-3 px-3 text-sm font-semibold outline-none text-gray-500 focus:border-primary bg-gray-50/50"
+    />
+  </div>
+  <div className="flex items-center gap-2">
+    <label className="text-sm font-bold text-gray-400 whitespace-nowrap">Sampai:</label>
+    <input
+      type="date"
+      value={filterTanggalAkhir}
+      onChange={(e) => setFilterTanggalAkhir(e.target.value)}
+      className="border-2 border-gray-50 rounded-xl py-3 px-3 text-sm font-semibold outline-none  text-gray-500 focus:border-primary bg-gray-50/50"
+    />
+  </div>
+  {(filterTanggalMulai || filterTanggalAkhir) && (
+    <button
+      onClick={() => { setFilterTanggalMulai(""); setFilterTanggalAkhir(""); }}
+      className="px-4 py-3 text-sm font-bold text-red-500 bg-red-50 hover:bg-red-100 rounded-xl transition-all"
+    >
+      Reset Filter
+    </button>
+  )}
+</div>
 
       <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
         <table className="w-full text-left border-collapse">
@@ -437,9 +491,9 @@ export default function PembayaranPage() {
                   <label className="text-sm font-bold text-gray-600 mb-2 block">Pilih Rekening Klinik</label>
                   <select required value={bankTerpilih} onChange={(e) => setBankTerpilih(e.target.value)} className="w-full border-2 border-gray-200 p-3 rounded-xl outline-none font-bold text-gray-700 focus:border-primary">
                     <option value="">-- Pilih Bank --</option>
-                    <option value="BCA">BCA - 1234567890 (Klinik RPL)</option>
-                    <option value="MANDIRI">Mandiri - 0987654321 (Klinik RPL)</option>
-                    <option value="BRI">BRI - 1122334455 (Klinik RPL)</option>
+                    <option value="BCA">BCA - 1234567890 (Klinik dr.Yofli)</option>
+                    <option value="MANDIRI">Mandiri - 0987654321 (Klinik dr.Yofli)</option>
+                    <option value="BRI">BRI - 1122334455 (Klinik dr.Yofli)</option>
                   </select>
                 </div>
               )}

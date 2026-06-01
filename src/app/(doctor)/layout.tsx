@@ -19,7 +19,7 @@ export default function AdminLayout({
       icon: "/componen-admin/dashboard.svg",
       path: "/dashboard-dokter",
       // Tambahkan route terkait yang juga dianggap sebagai "Dashboard"
-      activePaths: ["/dashboard-dokter", "/periksa", "/rekam-medis"], 
+      activePaths: ["/dashboard-dokter", "/periksa", "/rekam-medis", "/edit-rekam-medis"],
     },
     {
       name: "Jadwal Saya",
