@@ -27,7 +27,7 @@ import { getPasienList, createPasien, login } from '@/lib/api';
 |---|---|
 | Next.js 16 (App Router) | Framework & API Routes |
 | Prisma ORM v5 | Akses database |
-| SQLite (`prisma/dev.db`) | Database development |
+| PostgreSQL (Docker/Local) | Database development |
 | Zod | Validasi request body |
 | `jose` + `bcryptjs` | JWT Auth & hashing password |
 | HTTP-Only Cookie | Penyimpanan token login (otomatis oleh browser) |

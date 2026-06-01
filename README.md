@@ -21,7 +21,7 @@
 | [Next.js](https://nextjs.org) | 16.2.4 | Framework (App Router) |
 | React | 19.x | Library UI |
 | [Prisma](https://prisma.io) | ^6.x | ORM (Object-Relational Mapping) |
-| [SQLite](https://sqlite.org) | 3.x | Database (File-based) |
+| [PostgreSQL](https://postgresql.org) | 16.x | Database |
 | [Zod](https://zod.dev) | ^3.x | Schema Validation |
 | [Jose](https://github.com/panva/jose) | ^5.x | JWT for Edge Runtime |
 | Tailwind CSS | ^4.0 | Styling |
@@ -42,17 +42,21 @@ npm install
 ```
 
 ### 3. Konfigurasi Database
-Pastikan file `.env` sudah ada:
-```env
-DATABASE_URL="file:./dev.db"
-JWT_SECRET="rahasia_super_aman_anda"
-```
-
-Lalu sinkronkan database dan jalankan seeder:
-```bash
-npx prisma db push
-npx tsx prisma/seed.ts
-```
+1. Jalankan PostgreSQL via Docker Compose:
+   ```bash
+   docker compose up -d
+   ```
+2. Pastikan file `.env` sudah terkonfigurasi untuk PostgreSQL:
+   ```env
+   DATABASE_URL="postgresql://postgres:postgrespassword@localhost:5432/klinik_rpl?schema=public"
+   JWT_SECRET="rahasia_super_aman_anda"
+   ```
+3. Sinkronkan database dan jalankan seeder:
+   ```bash
+   npx prisma db push
+   npx tsx prisma/seed.ts
+   npx tsx prisma/seed_realistic.ts
+   ```
 
 ### 4. Jalankan Development Server
 ```bash
