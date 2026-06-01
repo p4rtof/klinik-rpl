@@ -26,6 +26,7 @@ const editRekamMedisSchema = z.object({
   // Klinis
   keluhan: z.string().min(1).optional(),
   tindakan: z.string().optional(),
+  biayaTindakan: z.number().min(0).optional(),
   diagnosis: z.array(z.object({ diagnosis: z.string().min(1) })).min(1).optional(),
   resep: z.array(z.object({
     obatId: z.string().min(1),
@@ -179,6 +180,14 @@ export async function PATCH(
             })),
           });
         }
+      }
+
+      // Update biaya pembayaran jika ada perubahan tindakan
+      if (data.biayaTindakan !== undefined) {
+        await tx.pembayaran.updateMany({
+          where: { rekamMedisId: id },
+          data: { jumlah: data.biayaTindakan },
+        });
       }
 
       return updated;

@@ -113,10 +113,12 @@ function EditRekamMedisContent() {
         // Pre-fill tindakan
         if (rm.tindakan) {
           const tindakanArr = rm.tindakan.split(", ").filter(Boolean);
-          // harga akan diisi setelah pilihanTindakan tersedia
           setTindakanItems(
             tindakanArr.length > 0
-              ? tindakanArr.map((label: string) => ({ label, harga: 0 }))
+              ? tindakanArr.map((label: string) => {
+                  const found = pilihanTindakan.find((t) => t.label === label);
+                  return { label, harga: found ? found.harga : 0 };
+                })
               : [{ label: "", harga: 0 }]
           );
         }
@@ -136,9 +138,9 @@ function EditRekamMedisContent() {
       .finally(() => setIsLoading(false));
   }, [rekamMedisId]);
 
-  // Setelah pilihanTindakan tersedia, cocokkan harga dengan tindakan yang sudah di-prefill
+  // Setelah pilihanTindakan atau rekamMedis tersedia, cocokkan harga dengan tindakan yang sudah di-prefill
   useEffect(() => {
-    if (pilihanTindakan.length === 0) return;
+    if (pilihanTindakan.length === 0 || !rekamMedis) return;
     setTindakanItems((prev) =>
       prev.map((item) => {
         if (!item.label) return item;
@@ -146,7 +148,7 @@ function EditRekamMedisContent() {
         return found ? { ...item, harga: found.harga } : item;
       })
     );
-  }, [pilihanTindakan]);
+  }, [pilihanTindakan, rekamMedis]);
 
   // --- LOGIKA TINDAKAN ---
   const addTindakanRow = () => setTindakanItems((p) => [...p, { label: "", harga: 0 }]);
@@ -187,6 +189,7 @@ function EditRekamMedisContent() {
       const payload = {
         keluhan: formData.keluhanUtama.trim() || rekamMedis?.keluhan,
         tindakan: validTindakan.map((t) => t.label).join(", "),
+        biayaTindakan: totalBiaya,
         diagnosis: [{ diagnosis: formData.diagnosis.trim() }],
         resep: resepValid,
         anamnesisKeluhanUtama: formData.keluhanUtama.trim() || undefined,

@@ -106,6 +106,43 @@ export async function DELETE(
     }
 
     const { id } = await params;
+
+    // Cek apakah ada antrian yang masih menunggu
+    const activeJadwal = await prisma.jadwal.findFirst({
+      where: {
+        pasienId: id,
+        status: "MENUNGGU",
+      },
+    });
+
+    if (activeJadwal) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Pasien ini masih memiliki kunjungan yang menunggu. Selesaikan kunjungan terlebih dahulu.",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Cek apakah ada pembayaran yang belum lunas
+    const activePembayaran = await prisma.pembayaran.findFirst({
+      where: {
+        pasienId: id,
+        status: "BELUM_BAYAR",
+      },
+    });
+
+    if (activePembayaran) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Pasien ini masih memiliki tagihan yang belum lunas. Selesaikan pembayaran terlebih dahulu.",
+        },
+        { status: 400 },
+      );
+    }
+
     await prisma.pasien.delete({ where: { id } });
     return NextResponse.json({
       success: true,
