@@ -518,9 +518,29 @@ Tidak butuh body. Hapus cookie token.
 
 ---
 
-## Akun Default
+## Akun Default & Setup Database
 
-Jalankan `npx tsx prisma/seed.ts` untuk membuat akun:
+### 📦 Menjalankan Database via Docker (Rekomendasi)
+Aplikasi ini menggunakan PostgreSQL. Cara termudah adalah menjalankannya menggunakan Docker Compose:
+- **Windows & macOS**: Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), lalu buka aplikasinya.
+- **Linux (Ubuntu/Arch/Debian)**: Install Docker (`sudo apt install docker.io docker-compose` atau `sudo pacman -S docker docker-compose`).
+  - Jalankan service: `sudo systemctl start docker`.
+  - Berikan izin socket jika terjadi permission denied: `sudo chmod 666 /var/run/docker.sock`.
+
+Jalankan database PostgreSQL dengan perintah:
+```bash
+docker compose up -d
+```
+
+### 🌱 Inisialisasi & Seeding Data
+Setelah database menyala, jalankan perintah berikut untuk menyinkronkan skema dan mengisi data:
+```bash
+npx prisma db push
+npx tsx prisma/seed.ts
+npx tsx prisma/seed_realistic.ts
+```
+
+Akun default yang terbentuk:
 
 | Role | Username | Password |
 |---|---|---|

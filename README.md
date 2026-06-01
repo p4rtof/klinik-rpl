@@ -41,15 +41,48 @@ cd klinik-rpl
 npm install
 ```
 
-### 3. Konfigurasi Database
-1. Jalankan PostgreSQL via Docker Compose:
-   ```bash
-   docker compose up -d
-   ```
-2. Pastikan file `.env` sudah terkonfigurasi untuk PostgreSQL:
+### 3. Konfigurasi Database & Docker
+
+Aplikasi ini menggunakan **PostgreSQL** yang dijalankan secara terisolasi menggunakan **Docker**.
+
+#### 📦 Langkah Awal: Instalasi Docker & Docker Compose
+Pilih platform OS Anda untuk memasang Docker:
+
+- **Windows & macOS:**
+  1. Unduh dan instal [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+  2. Jalankan aplikasi Docker Desktop dan pastikan status Docker engine adalah *Running*.
+- **Linux (Arch Linux / Ubuntu / Debian):**
+  - **Arch Linux:**
+    ```bash
+    sudo pacman -S docker docker-compose
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    ```
+  - **Ubuntu / Debian:**
+    ```bash
+    sudo apt update && sudo apt install docker.io docker-compose -y
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    ```
+  - **Penting untuk Linux (Izin Akses Socket):**
+    Agar Anda bisa menjalankan Docker tanpa `sudo` dan menghindari error *permission denied*, jalankan perintah berikut:
+    ```bash
+    sudo usermod -aG docker $USER
+    # Muat ulang grup session secara instan:
+    newgrp docker
+    # ATAU jika masih error, jalankan perintah ini untuk memberikan izin socket sementara:
+    sudo chmod 666 /var/run/docker.sock
+    ```
+
+#### 🛠️ Sinkronisasi Database
+1. Pastikan file `.env` sudah terkonfigurasi untuk PostgreSQL:
    ```env
    DATABASE_URL="postgresql://postgres:postgrespassword@localhost:5432/klinik_rpl?schema=public"
    JWT_SECRET="rahasia_super_aman_anda"
+   ```
+2. Jalankan container PostgreSQL via Docker Compose:
+   ```bash
+   docker compose up -d
    ```
 3. Sinkronkan database dan jalankan seeder:
    ```bash
