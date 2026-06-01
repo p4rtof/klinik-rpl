@@ -27,7 +27,7 @@ import { getPasienList, createPasien, login } from '@/lib/api';
 |---|---|
 | Next.js 16 (App Router) | Framework & API Routes |
 | Prisma ORM v5 | Akses database |
-| SQLite (`prisma/dev.db`) | Database development |
+| PostgreSQL (Docker/Local) | Database development |
 | Zod | Validasi request body |
 | `jose` + `bcryptjs` | JWT Auth & hashing password |
 | HTTP-Only Cookie | Penyimpanan token login (otomatis oleh browser) |
@@ -518,9 +518,29 @@ Tidak butuh body. Hapus cookie token.
 
 ---
 
-## Akun Default
+## Akun Default & Setup Database
 
-Jalankan `npx tsx prisma/seed.ts` untuk membuat akun:
+### 📦 Menjalankan Database via Docker (Rekomendasi)
+Aplikasi ini menggunakan PostgreSQL. Cara termudah adalah menjalankannya menggunakan Docker Compose:
+- **Windows & macOS**: Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), lalu buka aplikasinya.
+- **Linux (Ubuntu/Arch/Debian)**: Install Docker (`sudo apt install docker.io docker-compose` atau `sudo pacman -S docker docker-compose`).
+  - Jalankan service: `sudo systemctl start docker`.
+  - Berikan izin socket jika terjadi permission denied: `sudo chmod 666 /var/run/docker.sock`.
+
+Jalankan database PostgreSQL dengan perintah:
+```bash
+docker compose up -d
+```
+
+### 🌱 Inisialisasi & Seeding Data
+Setelah database menyala, jalankan perintah berikut untuk menyinkronkan skema dan mengisi data:
+```bash
+npx prisma db push
+npx tsx prisma/seed.ts
+npx tsx prisma/seed_realistic.ts
+```
+
+Akun default yang terbentuk:
 
 | Role | Username | Password |
 |---|---|---|
