@@ -57,9 +57,7 @@ export default function DashboardPage() {
     dokterId: "",
     keluhan: "",
     tanggal: todayDate,
-    jam: new Date()
-      .toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
-      .replace(".", ":"),
+    jam: new Date().toTimeString().slice(0, 5),
   });
 
   const hitungUsia = (tanggalLahir: string) => {
@@ -109,13 +107,12 @@ export default function DashboardPage() {
         const next = dataHariIni
           .filter((a: any) => a.status === "MENUNGGU")
           .sort((a: any, b: any) => {
-            // Ambil waktu dari tanggal antrean
-            const dateA = new Date(a.tanggal || 0).getTime();
-            const dateB = new Date(b.tanggal || 0).getTime();
+            const dateStrA = a.tanggal ? new Date(a.tanggal).toISOString().split("T")[0] : "";
+            const dateStrB = b.tanggal ? new Date(b.tanggal).toISOString().split("T")[0] : "";
 
             // 1. Urutkan berdasarkan tanggal lebih dulu (yang kemarin/terlewat dipanggil duluan)
-            if (dateA !== dateB) {
-              return dateA - dateB;
+            if (dateStrA !== dateStrB) {
+              return dateStrA.localeCompare(dateStrB);
             }
 
             // 2. Kalau tanggalnya sama (misal sama-sama hari ini), baru urutkan dari nomor antrean terkecil
@@ -202,10 +199,10 @@ export default function DashboardPage() {
         return a.status === "MENUNGGU" ? -1 : 1;
       }
 
-      const dateA = new Date(a.tanggal || 0).getTime();
-      const dateB = new Date(b.tanggal || 0).getTime();
+      const dateStrA = a.tanggal ? new Date(a.tanggal).toISOString().split("T")[0] : "";
+      const dateStrB = b.tanggal ? new Date(b.tanggal).toISOString().split("T")[0] : "";
 
-      if (dateA !== dateB) return dateA - dateB;
+      if (dateStrA !== dateStrB) return dateStrA.localeCompare(dateStrB);
 
       return (a.nomorAntrian ?? 0) - (b.nomorAntrian ?? 0);
     });
@@ -276,9 +273,7 @@ export default function DashboardPage() {
           pasienId: "",
           keluhan: "",
           tanggal: todayDate,
-          jam: new Date()
-            .toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
-            .replace(".", ":"),
+          jam: new Date().toTimeString().slice(0, 5),
         }));
         fetchData();
         // TAMBAHKAN 2 BARIS INI:

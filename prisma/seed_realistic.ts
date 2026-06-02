@@ -76,6 +76,19 @@ async function main() {
     const tanggal = new Date();
     tanggal.setDate(tanggal.getDate() - (30 - i));
 
+    // Buat Jadwal Kunjungan masa lalu dengan status SELESAI
+    const jadwalLalu = await prisma.jadwal.create({
+      data: {
+        pasienId: pasien.id,
+        dokterId: dokter.id,
+        tanggal: tanggal,
+        jam: `09:${String((i % 6) * 10).padStart(2, '0')}`,
+        nomorAntrian: (i % 3) + 1,
+        keluhan: kasus.keluhan,
+        status: "SELESAI",
+      }
+    });
+
     const rm = await prisma.rekamMedis.create({
       data: {
         pasienId: pasien.id,
@@ -84,6 +97,7 @@ async function main() {
         tanggal: tanggal,
         keluhan: kasus.keluhan,
         tindakan: kasus.tindakan,
+        jadwalId: jadwalLalu.id, // Hubungkan ke jadwal masa lalu
         catatanTambahan: "Saran: Istirahat cukup dan banyak minum air putih.",
         pemeriksaanFisik: "TD: 120/80 mmHg, Nadi: 80x/m, Suhu: 37.5C",
         diagnosis: {
@@ -135,7 +149,7 @@ async function main() {
 
     for (let j = 0; j < 3; j++) {
       const pasien = pasiens[(d + j) % pasiens.length];
-      const jam = `${9 + j}:00`;
+      const jam = `${String(9 + j).padStart(2, '0')}:00`;
       
       await prisma.jadwal.create({
         data: {

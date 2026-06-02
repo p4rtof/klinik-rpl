@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateJadwalFullSchema } from "@/lib/validations";
+import { recalculateQueueNumbers } from "@/lib/queue";
 
 // 1. GET: Ambil detail antrian
 export async function GET(
@@ -36,6 +37,17 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
+    // Validasi input
+    const parseResult = updateJadwalFullSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json({ success: false, error: "Data tidak valid", details: parseResult.error.format() }, { status: 400 });
+    }
+
+    const oldJadwal = await prisma.jadwal.findUnique({ where: { id } });
+    if (!oldJadwal) {
+      return NextResponse.json({ success: false, error: "Antrean tidak ditemukan" }, { status: 404 });
+    }
+
     const updated = await prisma.jadwal.update({
       where: { id },
       data: {
@@ -47,7 +59,19 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json({ success: true, data: updated });
+    const oldDateStr = oldJadwal.tanggal.toISOString().split('T')[0];
+    const newDateStr = updated.tanggal.toISOString().split('T')[0];
+
+    // Kalkulasi ulang nomor antrean untuk tanggal terkait
+    await recalculateQueueNumbers(oldDateStr);
+    if (newDateStr !== oldDateStr) {
+      await recalculateQueueNumbers(newDateStr);
+    }
+
+    // Ambil data ter-update dengan nomor antrean baru
+    const finalUpdated = await prisma.jadwal.findUnique({ where: { id } }) || updated;
+
+    return NextResponse.json({ success: true, data: finalUpdated });
   } catch (error) {
     console.error("PATCH Error:", error);
     return NextResponse.json({ success: false, error: "Gagal update data" }, { status: 500 });
@@ -77,6 +101,10 @@ export async function DELETE(
     await prisma.jadwal.delete({
       where: { id },
     });
+
+    // Kalkulasi ulang nomor antrean setelah dihapus
+    const deletedDateStr = exist.tanggal.toISOString().split('T')[0];
+    await recalculateQueueNumbers(deletedDateStr);
 
     return NextResponse.json({
       success: true,

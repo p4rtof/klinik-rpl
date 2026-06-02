@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-type SortBy = "default" | "rm" | "nama" | "usia" | "keluhan";
+type SortBy = "default" | "rm" | "nama" | "usia";
 
 export default function DashboardDokterPage() {
   const [antreanList, setAntreanList] = useState<any[]>([]);
@@ -141,8 +141,7 @@ export default function DashboardDokterPage() {
           hitungUsia(a.pasien?.tanggalLahir) -
           hitungUsia(b.pasien?.tanggalLahir)
         );
-      if (sortBy === "keluhan")
-        return (a.keluhan || "").localeCompare(b.keluhan || "");
+
 
       return 0;
     });
@@ -322,7 +321,6 @@ export default function DashboardDokterPage() {
             <option value="rm">Nomor RM</option>
             <option value="nama">Nama Pasien</option>
             <option value="usia">Usia</option>
-            <option value="keluhan">Keluhan</option>
           </select>
 
           <div className="relative">
@@ -348,7 +346,6 @@ export default function DashboardDokterPage() {
               <th className="px-2 py-3 text-left w-[17%]">Nama Pasien</th>
               <th className="px-2 py-3 text-center w-[12%]">Jenis Kelamin</th>
               <th className="px-4 py-3 text-center w-[14%]">Tgl Kunjungan</th>
-              {/* <th className="px-4 py-3 text-center">Jam</th> */}
               <th className="px-2 py-3 text-center w-[12%]">Usia</th>
               <th className="px-2 py-3 text-left w-[15%]">Keluhan</th>
               <th className="px-2 py-3 text-center w-[12%]">Status</th>
@@ -403,14 +400,14 @@ export default function DashboardDokterPage() {
                       : "Perempuan"}
                   </td>
                   <td className="px-4 py-3 text-md font-bold text-center">
-        {item.tanggal
-          ? new Date(item.tanggal).toLocaleDateString("id-ID", {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-            })
-          : "-"}
-      </td>
+                    {item.tanggal
+                      ? new Date(item.tanggal).toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "-"}
+                  </td>
                   <td className="text-center">
                     {item.pasien?.tanggalLahir
                       ? `${hitungUsia(item.pasien.tanggalLahir)} Tahun`

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jadwalSchema } from "@/lib/validations";
+import { recalculateQueueNumbers } from "@/lib/queue";
 
 // GET /api/antrian?tanggal=YYYY-MM-DD&dokterId=xxx&tanggalMulai=...&tanggalAkhir=...&sortBy=status
 export async function GET(request: Request) {
@@ -74,6 +75,38 @@ export async function GET(request: Request) {
       orderBy,
     });
 
+    if (tanggalParam) {
+      // Cek apakah ada record yang jam-nya tidak berformat HH:mm (contoh: "9:00" bukan "09:00")
+      const needsNormalize = antrian.some(a => !/^([01]\d|2[0-3]):([0-5]\d)$/.test(a.jam || ""));
+      if (needsNormalize) {
+        await recalculateQueueNumbers(tanggalParam);
+
+        // Query ulang data yang sudah dinormalisasi dan diurutkan
+        const cleanAntrian = await prisma.jadwal.findMany({
+          where: {
+            ...dateFilter,
+            ...(dokterId ? { dokterId } : {}),
+          },
+          include: {
+            pasien: {
+              select: {
+                id: true,
+                noRm: true,
+                nama: true,
+                noTelepon: true,
+                jenisKelamin: true,
+                tanggalLahir: true,
+              },
+            },
+            dokter: { select: { id: true, namaLengkap: true, spesialisasi: true } },
+          },
+          orderBy,
+        });
+
+        return NextResponse.json({ success: true, data: cleanAntrian });
+      }
+    }
+
     return NextResponse.json({ success: true, data: antrian });
   } catch (error) {
     console.error("[GET /api/antrian]", error);
@@ -101,35 +134,41 @@ export async function POST(request: Request) {
     }
 
     // 1. Tentukan tanggal
-    const targetTanggal = body.tanggal ? new Date(body.tanggal) : new Date();
+    const now = new Date();
+    const wibNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    const wibTodayStr = `${wibNow.getUTCFullYear()}-${String(wibNow.getUTCMonth() + 1).padStart(2, '0')}-${String(wibNow.getUTCDate()).padStart(2, '0')}`;
+
+    const targetDateStr = body.tanggal 
+      ? new Date(body.tanggal).toISOString().split('T')[0] 
+      : wibTodayStr;
+
+    const targetTanggal = new Date(`${targetDateStr}T00:00:00.000Z`);
     
     // Validasi tanggal tidak boleh di masa lalu
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkTanggal = new Date(targetTanggal);
-    checkTanggal.setHours(0, 0, 0, 0);
-    
-    if (checkTanggal < today) {
+    if (targetDateStr < wibTodayStr) {
       return NextResponse.json({ success: false, error: "Tanggal tidak boleh di masa lalu" }, { status: 400 });
     }
 
     // Validasi jam jika tanggal hari ini
-    if (checkTanggal.getTime() === today.getTime() && body.jam) {
-      const now = new Date();
-      now.setSeconds(0, 0); // Abaikan detik dan milidetik untuk perbandingan yang adil
+    if (targetDateStr === wibTodayStr && body.jam) {
       const [hour, minute] = body.jam.split(':').map(Number);
-      const scheduledTime = new Date();
-      scheduledTime.setHours(hour, minute, 0, 0);
+      if (isNaN(hour) || isNaN(minute)) {
+        return NextResponse.json({ success: false, error: "Format jam tidak valid" }, { status: 400 });
+      }
+      
+      const wibCurrentHour = wibNow.getUTCHours();
+      const wibCurrentMinute = wibNow.getUTCMinutes();
+      
+      const scheduledMinutes = hour * 60 + minute;
+      const currentMinutes = wibCurrentHour * 60 + wibCurrentMinute;
       
       // Jika jam terlewat, cek selisihnya.
-      if (scheduledTime < now) {
-        const diffInMinutes = (now.getTime() - scheduledTime.getTime()) / (1000 * 60);
+      if (scheduledMinutes < currentMinutes) {
+        const diffInMinutes = currentMinutes - scheduledMinutes;
         
         if (diffInMinutes <= 10) {
           // Masih dalam toleransi 10 menit, ubah jam ke jam sekarang agar valid
-          const currentHour = now.getHours().toString().padStart(2, '0');
-          const currentMinute = now.getMinutes().toString().padStart(2, '0');
-          body.jam = `${currentHour}:${currentMinute}`;
+          body.jam = `${String(wibCurrentHour).padStart(2, '0')}:${String(wibCurrentMinute).padStart(2, '0')}`;
         } else {
           return NextResponse.json({ success: false, error: "Jam sudah terlewat" }, { status: 400 });
         }
@@ -137,11 +176,8 @@ export async function POST(request: Request) {
     }
 
     // Bikin batasan waktu pencarian dari 00:00 sampai 23:59 di tanggal yang DIPILIH
-    const startOfDay = new Date(targetTanggal);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(targetTanggal);
-    endOfDay.setHours(23, 59, 59, 999);
+    const startOfDay = new Date(`${targetDateStr}T00:00:00.000Z`);
+    const endOfDay = new Date(`${targetDateStr}T23:59:59.999Z`);
 
     // 2. Hitung jumlah antrean HANYA pada tanggal yang dipilih supaya nomornya akurat
     const count = await prisma.jadwal.count({
@@ -167,9 +203,17 @@ export async function POST(request: Request) {
       },
     });
 
+    // 4. Hitung ulang nomor antrean secara kronologis
+    await recalculateQueueNumbers(targetDateStr);
+
+    // Ambil record yang sudah di-update nomor antreannya
+    const finalJadwal = await prisma.jadwal.findUnique({
+      where: { id: newJadwal.id },
+    }) || newJadwal;
+
     return NextResponse.json({
       success: true,
-      data: newJadwal,
+      data: finalJadwal,
       message: "Kunjungan berhasil dibuat",
     });
   } catch (error) {

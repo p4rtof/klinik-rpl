@@ -52,17 +52,31 @@ export default function JadwalSayaPage() {
 
   const fetchJadwal = async () => {
     try {
-      const res = await fetch("/api/antrian");
+      const { cells: currentCells } = buildCalendarMatrix(year, monthIndex);
+      const start = currentCells[0].date.toISOString().split("T")[0];
+      const end = currentCells[currentCells.length - 1].date.toISOString().split("T")[0];
+      const res = await fetch(`/api/antrian?tanggalMulai=${start}&tanggalAkhir=${end}`);
       const json = await res.json();
       if (json.success) setJadwalList(json.data);
     } catch (err) { console.error(err); }
   };
 
-  useEffect(() => { fetchJadwal(); }, [monthIndex]);
+  useEffect(() => { fetchJadwal(); }, [year, monthIndex]);
 
   const getJadwalForDate = (dateObj: Date) => {
-    const dateStr = `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}-${pad2(dateObj.getDate())}`;
-    return jadwalList.filter((j: any) => new Date(j.tanggal).toISOString().split('T')[0] === dateStr);
+    const y = dateObj.getFullYear();
+    const m = pad2(dateObj.getMonth() + 1);
+    const d = pad2(dateObj.getDate());
+    const dateStr = `${y}-${m}-${d}`;
+
+    return jadwalList.filter((j: any) => {
+      const jDate = new Date(j.tanggal);
+      const jYear = jDate.getFullYear();
+      const jMonth = pad2(jDate.getMonth() + 1);
+      const jDay = pad2(jDate.getDate());
+      const jDateStr = `${jYear}-${jMonth}-${jDay}`;
+      return jDateStr === dateStr;
+    });
   };
 
   const handleOpenDetail = (date: Date, list: any[]) => {

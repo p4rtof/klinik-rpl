@@ -24,21 +24,21 @@ export async function GET(request: Request) {
     if (search) {
       whereCondition = {
         OR: [
-          { nama: { contains: search } },
-          { id: { contains: search } },
-          { noTelepon: { contains: search } },
+          { nama: { contains: search, mode: "insensitive" } },
+          { id: { contains: search, mode: "insensitive" } },
+          { noTelepon: { contains: search, mode: "insensitive" } },
         ],
       };
     }
 
-    let orderBy: any = { id: "desc" };
+    let orderBy: any = { id: "asc" };
     if (sortBy === "nama") {
       orderBy = { nama: "asc" };
     } else if (sortBy === "tanggalLahir") {
       // Usia ASC = Tanggal Lahir DESC (paling muda dulu)
       orderBy = { tanggalLahir: "desc" };
     } else if (sortBy === "id") {
-      orderBy = { id: "desc" };
+      orderBy = { id: "asc" };
     }
 
     const pasien = await prisma.pasien.findMany({
