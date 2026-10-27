@@ -1,34 +1,37 @@
-# 🏥 Klinik RPL — Sistem Informasi Klinik
+# Klinik RPL — Sistem Informasi Klinik
 
-> Aplikasi web manajemen klinik berbasis **Next.js 16**, **React 19**, **TypeScript**, **Tailwind CSS v4**, dan **Prisma ORM**.
+Aplikasi web manajemen klinik (pendaftaran pasien, antrean, pemeriksaan dokter, rekam medis, rujukan, dan pembayaran) berbasis **Next.js 16**, **React 19**, **TypeScript**, **Tailwind CSS v4**, dan **Prisma ORM**.
+
+Proyek ini juga digunakan sebagai objek studi kasus **PBL Keamanan Sistem Informasi**: perancangan dan implementasi protokol **AAA (Authentication, Authorization, Accounting)** beserta fitur kriptografi.
 
 ---
 
-## 👥 Pembagian Tim
+## Fitur
 
-| Peran | Tanggung Jawab |
+| Role | Fitur |
 |---|---|
-| 🖥️ **Frontend Admin** | Dashboard admin, manajemen data pasien, pendaftaran antrean |
-| 🩺 **Frontend Dokter** | Dashboard dokter, pemeriksaan pasien, rekam medis |
-| ⚙️ **Backend** | API Routes, Database Schema, Autentikasi JWT |
+| **Admin** | Dashboard, manajemen data pasien, pendaftaran antrean, pembayaran & cetak kwitansi |
+| **Dokter** | Dashboard, jadwal saya, pemeriksaan pasien, rekam medis (anamnesis, TTV, diagnosis, resep, tindakan), rujukan & cetak surat rujukan, profil |
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Teknologi | Versi | Keterangan |
 |---|---|---|
-| [Next.js](https://nextjs.org) | 16.2.4 | Framework (App Router) |
-| React | 19.x | Library UI |
-| [Prisma](https://prisma.io) | ^6.x | ORM (Object-Relational Mapping) |
-| [SQLite](https://sqlite.org) | 3.x | Database (File-based) |
-| [Zod](https://zod.dev) | ^3.x | Schema Validation |
-| [Jose](https://github.com/panva/jose) | ^5.x | JWT for Edge Runtime |
-| Tailwind CSS | ^4.0 | Styling |
+| [Next.js](https://nextjs.org) | 16.2.4 | Framework (App Router) + API Routes |
+| React | 19.2.x | Library UI |
+| TypeScript | 5.x | Bahasa pemrograman |
+| [Prisma](https://prisma.io) | ^5.15 | ORM |
+| PostgreSQL | - | Database (`provider = "postgresql"`) |
+| [Zod](https://zod.dev) | - | Validasi input |
+| [jose](https://github.com/panva/jose) | ^6.2 | JWT (HS256) |
+| bcryptjs | ^3.0 | Hashing password |
+| Tailwind CSS | ^4 | Styling |
 
 ---
 
-## 🚀 Cara Menjalankan Proyek
+## Cara Menjalankan
 
 ### 1. Clone Repository
 ```bash
@@ -41,91 +44,137 @@ cd klinik-rpl
 npm install
 ```
 
-### 3. Konfigurasi Database
-Pastikan file `.env` sudah ada:
+### 3. Konfigurasi Environment
+Buat file `.env` di root proyek:
 ```env
-DATABASE_URL="file:./dev.db"
-JWT_SECRET="rahasia_super_aman_anda"
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB_NAME"
+DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/DB_NAME"
+JWT_SECRET="isi_dengan_string_acak_yang_panjang"
 ```
 
-Lalu sinkronkan database dan jalankan seeder:
+> **Wajib** mengisi `JWT_SECRET` dengan nilai acak yang kuat. Jangan commit file `.env`.
+> Jika memakai Supabase/Neon, `DATABASE_URL` biasanya connection pooler dan `DIRECT_URL` koneksi langsung.
+
+### 4. Sinkronisasi Database & Seeder
 ```bash
 npx prisma db push
 npx tsx prisma/seed.ts
 ```
 
-### 4. Jalankan Development Server
+Seeder membuat akun default (**hanya untuk development, segera ganti di production**):
+
+| Role | Username | Password |
+|---|---|---|
+| Admin | `admin` | `admin123` |
+| Dokter | `dryofli` | `admin123` |
+
+Opsional, untuk data contoh yang lebih lengkap: `npx tsx prisma/seed_realistic.ts`
+
+### 5. Jalankan Server
 ```bash
 npm run dev
 ```
-Buka [http://localhost:3000](http://localhost:3000) di browser.
+Buka [http://localhost:3000](http://localhost:3000).
+
+### Script Lain
+```bash
+npm run build   # build production
+npm run start   # jalankan hasil build
+npm run lint    # cek ESLint
+```
 
 ---
 
-## 📁 Struktur Folder Utama
+## Struktur Folder
 
 ```
 klinik-rpl/
 ├── prisma/
-│   ├── schema.prisma      # Definisi Database Model
-│   └── seed.ts            # Data awal (admin & dokter)
-├── public/                # Aset statis
+│   ├── schema.prisma        # Definisi model database
+│   ├── migrations/          # Riwayat migrasi
+│   ├── seed.ts              # Seeder akun admin & dokter
+│   └── seed_realistic.ts    # Seeder data contoh
+├── public/                  # Aset statis (SVG, logo)
 ├── src/
+│   ├── middleware.ts        # Proteksi route & injeksi identitas dari JWT
 │   ├── app/
-│   │   ├── (admin)/       # 🖥️ Halaman Dashboard Admin
-│   │   ├── (auth)/        # 🔐 Halaman Login
-│   │   ├── (doctor)/      # 🩺 Halaman Dashboard Dokter
-│   │   └── api/           # ⚙️ Backend — API Routes
-│   │       ├── antrian/
-│   │       ├── auth/
-│   │       ├── dokter/
+│   │   ├── (auth)/          # Halaman login
+│   │   ├── (admin)/         # Dashboard, data pasien, pembayaran
+│   │   ├── (doctor)/        # Dashboard dokter, jadwal, periksa, rekam medis, profil
+│   │   ├── rujukan/print/   # Cetak surat rujukan
+│   │   └── api/             # Backend API Routes
+│   │       ├── auth/        # login, logout, me
 │   │       ├── pasien/
-│   │       └── rekam-medis/
-│   ├── lib/               # Shared Utilities (Prisma Client, Auth, Zod)
-│   └── proxy.ts           # Middleware Keamanan (JWT Check)
+│   │       ├── dokter/
+│   │       ├── antrian/
+│   │       ├── rekam-medis/
+│   │       ├── rujukan/
+│   │       ├── pembayaran/
+│   │       └── tindakan-medis/
+│   └── lib/                 # prisma.ts, auth.ts, validations.ts, api.ts, id-generator.ts
+└── backend_docs.md          # Dokumentasi API detail
 ```
 
 ---
 
-## 📖 Panduan Backend & API
+## Model Database
 
-### Endpoint API
-Backend telah mengimplementasikan beberapa modul utama:
-*   `POST /api/auth/login`: Autentikasi user & pemberian session cookie.
-*   `GET /api/pasien`: Mengambil daftar pasien (Admin).
-*   `POST /api/antrian`: Membuat antrean baru.
-*   `POST /api/rekam-medis`: Input diagnosa oleh dokter.
+`User` · `Pasien` · `Jadwal` · `RekamMedis` · `Diagnosis` · `Resep` · `Rujukan` · `Pembayaran`
 
-Dokumentasi detail mengenai API dapat dilihat pada: **[BACKEND_DOCS.md](BACKEND_DOCS.md)**
-
-### Contoh Fetch Data di Frontend
-```tsx
-// Contoh memanggil data pasien dari Client Component atau Server Component
-async function fetchData() {
-  const res = await fetch('/api/pasien');
-  const result = await res.json();
-  if (result.success) return result.data;
-}
-```
+Detail relasi ada di [`prisma/schema.prisma`](prisma/schema.prisma).
 
 ---
 
-## 🔄 Workflow Kolaborasi Tim
+## Keamanan Saat Ini
 
-1. **Pull terbaru** dari `main`.
-2. **Buat branch** sesuai fitur: `feature/nama-fitur`.
-3. **Kerjakan fitur** dan lakukan commit.
-4. **Push** ke GitHub dan buat **Pull Request**.
-
----
-
-## ⚠️ Hal yang Perlu Diperhatikan
-
-- **Next.js 16 + React 19**: Gunakan fitur terbaru seperti `use client` atau Server Actions jika diperlukan.
-- **Prisma**: Jika Anda mengubah `schema.prisma`, jangan lupa jalankan `npx prisma db push`.
-- **Security**: Semua API dilindungi oleh middleware (kecuali login). User harus login terlebih dahulu.
-- **Validation**: Backend menggunakan Zod untuk validasi input. Pastikan data yang dikirim sesuai skema di `src/lib/validations.ts`.
+- Password di-hash dengan **bcrypt**.
+- Sesi memakai **JWT (HS256)**, berlaku 8 jam, disimpan di cookie `httpOnly` (`secure` di production, `sameSite=lax`).
+- **Middleware** membatasi akses halaman berdasarkan role (ADMIN / DOKTER).
+- Input API divalidasi dengan **Zod**.
 
 ---
 
-<p align="center">Proyek RPL · Kelompok Klinik · 2026</p>
+## Roadmap PBL: Protokol Keamanan AAA
+
+Fitur yang dikerjakan pada proyek PBL (status: dalam pengerjaan):
+
+- [ ] **Threat modeling** (STRIDE) dan desain protokol keamanan
+- [ ] **Enkripsi data at rest** (AES-256-GCM) untuk field sensitif rekam medis & data pasien
+- [ ] **Authentication**: hardening login (rate limiting / lockout, password policy, manajemen sesi)
+- [ ] **Authorization**: penegakan role & kepemilikan data di setiap API route
+- [ ] **Accounting**: audit log (siapa, aksi, resource, waktu, IP) dan riwayat login
+- [ ] **Key management**: pemisahan kunci enkripsi dari kode (environment/KMS)
+- [ ] **Pengujian & benchmark**: performance overhead sebelum vs sesudah enkripsi
+
+---
+
+## Dokumentasi API
+
+Endpoint utama (lengkapnya di **[backend_docs.md](backend_docs.md)**):
+
+| Method | Endpoint | Keterangan |
+|---|---|---|
+| POST | `/api/auth/login` | Login, mengirim cookie sesi |
+| POST | `/api/auth/logout` | Logout |
+| GET | `/api/auth/me` | Data user yang sedang login |
+| GET/POST | `/api/pasien` | Daftar / tambah pasien |
+| GET/POST | `/api/antrian` | Daftar / buat antrean |
+| GET/POST | `/api/rekam-medis` | Daftar / input rekam medis |
+| GET/POST | `/api/pembayaran` | Daftar / buat pembayaran |
+
+Semua endpoint selain login membutuhkan sesi login yang valid. Helper pemanggilan API tersedia di `src/lib/api.ts`.
+
+---
+
+## Workflow Kolaborasi
+
+1. Pull terbaru dari `main`.
+2. Buat branch: `feature/nama-fitur`.
+3. Kerjakan dan commit.
+4. Push ke GitHub dan buat Pull Request.
+
+> Jika mengubah `schema.prisma`, jalankan `npx prisma db push` (atau `npx prisma migrate dev`).
+
+---
+
+<p align="center">Proyek RPL & PBL Keamanan Sistem Informasi · Klinik · 2026</p>
