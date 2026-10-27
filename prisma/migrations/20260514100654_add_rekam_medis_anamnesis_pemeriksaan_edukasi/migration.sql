@@ -1,0 +1,20 @@
+-- AlterTable
+ALTER TABLE "RekamMedis" ADD COLUMN "anamnesisKebiasaan" TEXT;
+ALTER TABLE "RekamMedis" ADD COLUMN "anamnesisKeluhanUtama" TEXT;
+ALTER TABLE "RekamMedis" ADD COLUMN "anamnesisRiwayatKeluarga" TEXT;
+ALTER TABLE "RekamMedis" ADD COLUMN "anamnesisRiwayatObat" TEXT;
+ALTER TABLE "RekamMedis" ADD COLUMN "anamnesisRpd" TEXT;
+ALTER TABLE "RekamMedis" ADD COLUMN "anamnesisRps" TEXT;
+ALTER TABLE "RekamMedis" ADD COLUMN "bb" REAL;
+ALTER TABLE "RekamMedis" ADD COLUMN "bmi" REAL;
+ALTER TABLE "RekamMedis" ADD COLUMN "catatanTambahan" TEXT;
+ALTER TABLE "RekamMedis" ADD COLUMN "edukasiPasien" TEXT;
+ALTER TABLE "RekamMedis" ADD COLUMN "nadi" INTEGER;
+ALTER TABLE "RekamMedis" ADD COLUMN "pemeriksaanFisik" TEXT;
+ALTER TABLE "RekamMedis" ADD COLUMN "rr" INTEGER;
+ALTER TABLE "RekamMedis" ADD COLUMN "rujukanCatatan" TEXT;
+ALTER TABLE "RekamMedis" ADD COLUMN "spo2" INTEGER;
+ALTER TABLE "RekamMedis" ADD COLUMN "suhu" REAL;
+ALTER TABLE "RekamMedis" ADD COLUMN "tb" REAL;
+ALTER TABLE "RekamMedis" ADD COLUMN "tdDiastolik" INTEGER;
+ALTER TABLE "RekamMedis" ADD COLUMN "tdSistolik" INTEGER;
